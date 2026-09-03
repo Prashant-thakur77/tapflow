@@ -1,0 +1,23 @@
+{
+  "name": "tapflow-agent",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "TapBot — a momentum agent that taps as a public TapFlow leader",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "signal": "tsx src/signal-check.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@somnia-chain/markets-sdk": "^0.28.1",
+    "dotenv": "^16.4.5",
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}
