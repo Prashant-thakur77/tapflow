@@ -7,3 +7,5 @@ export * from "./markets";
 export * from "./tap";
 export * from "./positions";
 export * from "./format";
+export * from "./session";
+export * from "./operator";

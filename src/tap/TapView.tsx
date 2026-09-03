@@ -28,6 +28,8 @@ import { OddsBar } from "./OddsBar";
 import { LiveTape } from "./LiveTape";
 import { ResultCard } from "./ResultCard";
 import { TickNumber } from "./TickNumber";
+import { SessionControl } from "./SessionControl";
+import { useSession } from "./useSession";
 import { HowItWorksModal } from "../HowItWorksModal";
 
 const fmtPx = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -49,6 +51,7 @@ export const TapView: React.FC = () => {
   const { usdc, refetch: refetchBal } = useBalances();
   const refreshAll = useRefreshAfterTx();
   const { unseen, pending } = useSettlement();
+  const { active: oneTap } = useSession();
   const stats = statsOf(taps);
 
   const { address, isConnected } = useAccount();
@@ -260,6 +263,8 @@ export const TapView: React.FC = () => {
 
         {/* ── right column: the decision ── */}
         <div className="flex flex-col gap-3 min-w-0">
+          {isConnected ? <SessionControl /> : null}
+
           <div className="tf-card px-3 py-2 flex items-center justify-between">
             <span className="text-[10px] uppercase tracking-[0.25em] text-bn-text-muted">stake</span>
             <div className="tf-seg">
@@ -296,7 +301,10 @@ export const TapView: React.FC = () => {
                 <span>
                   this window: <span className="text-up font-bold">Up {pos ? fmtUsdc(pos.up) : "0.00"}</span> · <span className="text-down font-bold">Down {pos ? fmtUsdc(pos.down) : "0.00"}</span>
                 </span>
-                <span className="font-mono">{address ? short(address) : ""}</span>
+                <span className="font-mono flex items-center gap-1.5">
+                  {oneTap ? <span className="text-up" title="one-tap on — no popups">⚡</span> : null}
+                  {address ? short(address) : ""}
+                </span>
               </div>
             )}
             {stats.taps > 0 ? (

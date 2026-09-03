@@ -3,7 +3,8 @@ import { useEffect, type ReactNode } from "react";
 import { WagmiProvider, createConfig, http, useWalletClient } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { SomniaMarketsProvider } from "@somnia-chain/markets-sdk/react";
-import { bindSigner, getClient, somniaShannon, unbindSigner } from "../lib/ec";
+import { bindSigner, getClient, isLive, somniaShannon, unbindSigner } from "../lib/ec";
+import { useSessionStore } from "../tap/sessionStore";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
@@ -15,13 +16,18 @@ const config = createConfig({
   transports: { [somniaShannon.id]: http() },
 });
 
-/** Hands the connected wallet to the DreamDEX exchange as its signer. */
+/**
+ * Chooses the signer for every write: the session wallet when one is live (taps
+ * need no popup), otherwise the connected wallet, otherwise read-only.
+ */
 function SignerBridge() {
   const { data: walletClient } = useWalletClient();
+  const session = useSessionStore((s) => s.session);
   useEffect(() => {
-    if (walletClient) bindSigner({ walletClient });
+    if (isLive(session)) bindSigner({ privateKey: session!.privateKey });
+    else if (walletClient) bindSigner({ walletClient });
     else unbindSigner();
-  }, [walletClient]);
+  }, [walletClient, session]);
   return null;
 }
 

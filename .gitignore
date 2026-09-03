@@ -42,3 +42,16 @@ refs/
 .env.*
 !.env.example
 market.json
+
+# subproject build + data
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+contracts/lib/
+indexer/node_modules/
+indexer/*.db
+indexer/*.db-*
+agent/node_modules/
+tg-bot/node_modules/
+deployments.json
+subscriptions.json
