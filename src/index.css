@@ -1,0 +1,494 @@
+@import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap");
+
+@theme {
+  /* Centure brand color system */
+  --color-bn-bg: #0b101c;
+  --color-bn-surface: rgba(255, 255, 255, 0.03);
+  --color-bn-surface2: rgba(255, 255, 255, 0.05);
+  --color-bn-surface3: rgba(255, 255, 255, 0.02);
+  --color-bn-border: rgba(255, 255, 255, 0.05);
+  --color-bn-border2: rgba(255, 255, 255, 0.1);
+
+  --color-bn-yellow: #0847f7;
+  --color-bn-yellow-hover: #8aa6f9;
+  --color-bn-yellow-dim: rgba(8, 71, 247, 0.15);
+
+  --color-bn-green: #2ebd85; /* kept for crypto prices */
+  --color-bn-red: #f6465d;
+  --color-bn-text: #f8faff;
+  --color-bn-text-dim: #d0d0d0;
+  --color-bn-text-muted: #a0a0a0;
+  --color-bn-blue: #0d6efd;
+
+  /* Legacy aliases for compatibility */
+  --color-vibe-bg: #0b101c;
+  --color-vibe-surface: rgba(255, 255, 255, 0.03);
+  --color-vibe-surface2: rgba(255, 255, 255, 0.05);
+  --color-vibe-grid: rgba(255, 255, 255, 0.05);
+  --color-vibe-grid2: rgba(255, 255, 255, 0.1);
+  --color-vibe-accent: #0847f7;
+  --color-vibe-accent-hover: #8aa6f9;
+  --color-vibe-accent-dim: rgba(8, 71, 247, 0.15);
+  --color-vibe-text: #f8faff;
+  --color-vibe-text-dim: #d0d0d0;
+  --color-vibe-text-muted: #a0a0a0;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-bn-bg);
+    background: radial-gradient(
+      circle at 50% 10%,
+      #0f214a 0%,
+      #0b101c 50%,
+      #0b101c 100%
+    );
+    min-height: 100vh;
+    color: var(--color-bn-text);
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    font-family:
+      "Manrope",
+      -apple-system,
+      BlinkMacSystemFont,
+      sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-size: 14px;
+  }
+
+  /* Custom Scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-bn-border2) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-bn-border2);
+    border-radius: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-bn-text-muted);
+  }
+
+  /* Animations */
+  @keyframes marquee {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-50%);
+    }
+  }
+
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  @keyframes walletToastShake {
+    0% {
+      transform: translateX(8px) rotate(0deg);
+    }
+    20% {
+      transform: translateX(-6px) rotate(-1deg);
+    }
+    40% {
+      transform: translateX(5px) rotate(1deg);
+    }
+    60% {
+      transform: translateX(-4px) rotate(-0.6deg);
+    }
+    80% {
+      transform: translateX(2px) rotate(0.4deg);
+    }
+    100% {
+      transform: translateX(0) rotate(0deg);
+    }
+  }
+
+  @keyframes walletToastFadeOut {
+    from {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(-8px) scale(0.98);
+    }
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .animate-fade-in-up {
+    animation: fadeInUp 0.6s ease-out forwards;
+  }
+
+  .wallet-win-toast {
+    animation:
+      walletToastShake 0.55s ease-in-out 0s 1,
+      walletToastFadeOut 1.2s ease-in 3.1s forwards;
+  }
+
+  .wallet-win-toast-leave {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+    transition: all 0.2s ease;
+  }
+
+  /* Binance-style nav glass */
+  .bn-nav {
+    background: rgba(22, 20, 42, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.03);
+  }
+
+  /* Card surface */
+  .bn-card {
+    background: linear-gradient(
+      150deg,
+      rgba(255, 255, 255, 0.04) 0%,
+      rgba(255, 255, 255, 0.01) 100%
+    );
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 2px solid rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    transition: all 0.2s ease;
+  }
+
+  .bn-card:hover {
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Glass morphism utility */
+  .glass {
+    background: linear-gradient(
+      150deg,
+      rgba(255, 255, 255, 0.04) 0%,
+      rgba(255, 255, 255, 0.01) 100%
+    );
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 2px solid rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+  }
+
+  /* Binance primary button */
+  .btn-primary {
+    background: linear-gradient(
+      135deg,
+      rgb(5, 45, 125) 0%,
+      rgb(5, 45, 125) 50%,
+      rgb(8, 71, 247) 100%
+    );
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 14px;
+    border-radius: 10px;
+    padding: 10px 20px;
+    transition: all 0.2s ease;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+  }
+
+  .btn-primary:hover {
+    background: linear-gradient(
+      135deg,
+      rgb(8, 71, 247) 0%,
+      rgb(5, 45, 125) 50%,
+      rgb(5, 45, 125) 100%
+    );
+    border-color: rgba(255, 255, 255, 0.5);
+  }
+
+  .btn-primary:active {
+    transform: scale(0.98);
+  }
+
+  .btn-secondary {
+    background: linear-gradient(
+      150deg,
+      rgba(255, 255, 255, 0.03) 0%,
+      rgba(255, 255, 255, 0.01) 100%
+    );
+    color: var(--color-bn-text);
+    font-weight: 500;
+    font-size: 14px;
+    border-radius: 10px;
+    padding: 10px 20px;
+    transition: all 0.2s ease;
+    border: 2px solid rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+  }
+
+  .btn-secondary:hover {
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+
+  .btn-outline {
+    background: transparent;
+    color: var(--color-bn-text);
+    font-weight: 500;
+    border-radius: 10px;
+    padding: 9px 20px;
+    transition: all 0.2s ease;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+  }
+
+  .btn-outline:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  /* Input styles */
+  .input-dark {
+    background: rgba(255, 255, 255, 0.02);
+    border: 2px solid rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    color: var(--color-bn-text);
+    transition: border-color 0.2s ease;
+    outline: none;
+    font-family: "Manrope", sans-serif;
+  }
+
+  .input-dark:focus {
+    border-color: rgba(8, 71, 247, 0.5); /* Purple accent */
+  }
+
+  /* Feature card */
+  .feature-card {
+    background: linear-gradient(
+      150deg,
+      rgba(255, 255, 255, 0.04) 0%,
+      rgba(255, 255, 255, 0.01) 100%
+    );
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 2px solid rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 24px;
+    transition: all 0.25s ease;
+  }
+
+  .feature-card:hover {
+    border-color: rgba(255, 255, 255, 0.15);
+    transform: translateY(-2px);
+  }
+
+  /* Label tag */
+  .label-tag {
+    display: inline-block;
+    background: rgba(8, 71, 247, 0.15);
+    color: #0847f7;
+    border: 1px solid rgba(8, 71, 247, 0.3);
+    border-radius: 6px;
+    padding: 4px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* Active sidebar item - Binance tab indicator style */
+  .nav-active {
+    background: linear-gradient(
+      90deg,
+      rgba(8, 71, 247, 0.15) 0%,
+      transparent 100%
+    );
+    color: #0847f7;
+    border-left: 3px solid #0847f7;
+  }
+
+  /* Tab underline style */
+  .tab-active {
+    color: var(--color-bn-text);
+    border-bottom: 2px solid #0847f7;
+  }
+
+  /* Data table row hover */
+  .table-row-hover:hover {
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  /* Ticker/marquee */
+  .bn-ticker {
+    background: var(--color-bn-surface3);
+    border-bottom: 1px solid var(--color-bn-border);
+  }
+
+  /* Green/Red price colors */
+  .price-up {
+    color: var(--color-bn-green);
+  }
+  .price-down {
+    color: var(--color-bn-red);
+  }
+
+  /* ── Sci-Fi UI Centure Theme Utilities ── */
+
+  .sci-card {
+    position: relative;
+    background: linear-gradient(
+      150deg,
+      rgba(255, 255, 255, 0.04) 0%,
+      rgba(255, 255, 255, 0.01) 100%
+    );
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+  }
+
+  /* Sci button with corner brackets */
+  .sci-btn {
+    position: relative;
+    border-radius: 6px;
+    padding: 12px 24px;
+    color: white;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 14px;
+    letter-spacing: 0.1em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* We'll use currentColor so it adapts perfectly */
+  .sci-btn-primary {
+    background: transparent;
+    border: 2px solid currentColor;
+    color: var(--color-bn-text);
+  }
+
+  .sci-btn-primary:hover {
+    background: rgba(255, 255, 255, 0.05);
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+  }
+
+  .sci-btn-outline {
+    background: transparent;
+    border: 2px solid currentColor;
+  }
+
+  .sci-btn-outline:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  /* Premium reinforced corner brackets */
+  .sci-btn::before,
+  .sci-btn::after {
+    content: "";
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border-color: currentColor;
+    border-style: solid;
+    pointer-events: none;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .sci-btn::before {
+    top: 5px;
+    left: 5px;
+    border-width: 2.5px 0 0 2.5px;
+  }
+  .sci-btn::after {
+    bottom: 5px;
+    right: 5px;
+    border-width: 0 2.5px 2.5px 0;
+  }
+  .sci-btn-corners {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .sci-btn-corners::before,
+  .sci-btn-corners::after {
+    content: "";
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border-color: currentColor;
+    border-style: solid;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .sci-btn-corners::before {
+    top: 5px;
+    right: 5px;
+    border-width: 2.5px 2.5px 0 0;
+  }
+  .sci-btn-corners::after {
+    bottom: 5px;
+    left: 5px;
+    border-width: 0 0 2.5px 2.5px;
+  }
+
+  .sci-btn:not(:disabled):hover::before,
+  .sci-btn:not(:disabled):hover::after,
+  .sci-btn:not(:disabled):hover .sci-btn-corners::before,
+  .sci-btn:not(:disabled):hover .sci-btn-corners::after {
+    width: 16px;
+    height: 16px;
+    border-color: #ffffff;
+  }
+
+  /* Remove number input arrows (spinners) */
+  input::-webkit-outer-spin-button,
+  input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+}
