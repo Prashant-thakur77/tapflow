@@ -28,7 +28,7 @@ export function useLiveWindows() {
   const q = useQuery({
     queryKey: ["windows"],
     queryFn: () => listLiveWindows(getClient()),
-    refetchInterval: 10_000,
+    refetchInterval: 15_000,
     staleTime: 5_000,
   });
   return q;

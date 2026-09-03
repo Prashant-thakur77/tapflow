@@ -52,9 +52,16 @@ export const TapView: React.FC = () => {
   const [lastTx, setLastTx] = useState<{ side: Side; hash: string; filled: bigint; avg: number } | null>(null);
 
   const available = cadences(windows, asset);
-  const feedDecimals = spot?.decimals ?? 2;
-  const openPx = opening !== null && opening !== undefined ? opening / 10 ** feedDecimals : null;
   const spotPx = spot?.price ?? null;
+  // The opening answer is an integer in the oracle's own scale (2 dp today).
+  // Pick the scale that lands nearest the live spot so a feed change can't
+  // silently show $0.00 or a 10^16% move.
+  const openPx = (() => {
+    if (opening === null || opening === undefined || opening <= 0) return null;
+    if (!spotPx) return opening / 100;
+    const scales = [1e2, 1e6, 1e8, 1e18, 1];
+    return opening / scales.reduce((best, s) => (Math.abs(opening / s - spotPx) < Math.abs(opening / best - spotPx) ? s : best), 1e2);
+  })();
   const move = openPx && spotPx ? (spotPx - openPx) / openPx : null;
   const tone: "up" | "down" | "flat" = move === null ? "flat" : move >= 0 ? "up" : "down";
   const locking = left < 5;

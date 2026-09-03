@@ -16,7 +16,7 @@ import {
 import type { Hex } from "viem";
 import { LOT, ONE, TICK } from "./config";
 import { assertTxOk } from "./exchange";
-import type { TapWindow } from "./markets";
+import { MARKET_STATUS, refreshStatus, type TapWindow } from "./markets";
 
 export type Side = "UP" | "DOWN";
 
@@ -140,6 +140,11 @@ export async function placeTap(
   const nowSec = Math.floor(Date.now() / 1000);
   const expiresAt = Math.min(nowSec + (opts.expiresInSec ?? 120), w.expiry);
   if (expiresAt <= nowSec) throw new Error("window already closed");
+
+  // One RPC read so a locked/settling window fails here, not as a reverted tx
+  // that burns gas (the SDK does not simulate before sending).
+  const status = await refreshStatus(ex.client, w.marketId);
+  if (status !== MARKET_STATUS.Trading) throw new Error(`window is not trading (status ${status})`);
 
   const res = await ex.trader.placeOrder({
     pool: w.pool,

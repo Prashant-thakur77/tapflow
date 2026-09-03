@@ -48,6 +48,35 @@ function asAsset(a: string): Asset | null {
   return a === "BTC" || a === "ETH" ? a : null;
 }
 
+/**
+ * A market's on-chain wiring (pool, outcome ids, collateral) never changes for
+ * a given marketId — pools are recycled across windows but each window is a
+ * new id — so read it once. Status is re-read by {@link refreshStatus} right
+ * before a trade; between refreshes the expiry clock is the gate.
+ */
+const onchainCache = new Map<string, MarketOnchain>();
+
+async function readOnchain(client: SomniaMarketsClient, marketId: Hex): Promise<MarketOnchain | null> {
+  const key = marketId.toLowerCase();
+  const hit = onchainCache.get(key);
+  if (hit) return hit;
+  try {
+    const oc = await client.getMarketOnchain(marketId);
+    onchainCache.set(key, oc);
+    return oc;
+  } catch (e) {
+    console.debug(`[tapflow] getMarketOnchain(${marketId.slice(-6)}) failed: ${String(e).slice(0, 160)}`);
+    return null;
+  }
+}
+
+/** Authoritative on-chain status right now (one RPC read). Only 1 = Trading accepts orders. */
+export async function refreshStatus(client: SomniaMarketsClient, marketId: Hex): Promise<number> {
+  const oc = await client.getMarketOnchain(marketId);
+  onchainCache.set(marketId.toLowerCase(), oc);
+  return oc.finalized ? MARKET_STATUS.Resolved : oc.status;
+}
+
 /** Every window on the venue that is Trading on-chain right now, soonest expiry first. */
 export async function listLiveWindows(
   client: SomniaMarketsClient,
@@ -59,17 +88,11 @@ export async function listLiveWindows(
     asset: opts.asset,
     limit: opts.limit ?? 40,
   });
-  console.debug(`[tapflow] indexer: ${rows.length} live rows in ${Date.now() - t0}ms`);
+  const fresh = rows.filter((r) => !onchainCache.has(r.marketId.toLowerCase())).length;
+  console.debug(`[tapflow] indexer: ${rows.length} live rows (${fresh} new) in ${Date.now() - t0}ms`);
 
-  const onchain = await Promise.all(
-    rows.map((r) =>
-      client.getMarketOnchain(r.marketId).catch((e) => {
-        console.debug(`[tapflow] getMarketOnchain(${r.marketId.slice(-6)}) failed: ${String(e).slice(0, 160)}`);
-        return null as MarketOnchain | null;
-      }),
-    ),
-  );
-  console.debug(`[tapflow] on-chain status for ${rows.length} rows in ${Date.now() - t0}ms`);
+  const onchain = await Promise.all(rows.map((r) => readOnchain(client, r.marketId)));
+  if (fresh) console.debug(`[tapflow] on-chain wiring for ${fresh} new rows in ${Date.now() - t0}ms`);
 
   const out: TapWindow[] = [];
   rows.forEach((r, i) => {
