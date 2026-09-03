@@ -35,7 +35,7 @@ export const WindowRing: React.FC<{
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-3">
         <div className="text-[9px] uppercase tracking-[0.25em] text-bn-text-muted leading-tight">{label}</div>
         <div className={`font-mono font-extrabold tabular leading-none mt-1 ${late ? "text-amber" : "text-white"}`} style={{ fontSize: size * 0.2 }}>
-          {fmtCountdown(left)}
+          {left > 0 ? fmtCountdown(left) : <span className="text-white/30">··</span>}
         </div>
         {sub ? <div className="mt-1 text-[10px] text-bn-text-dim">{sub}</div> : null}
       </div>

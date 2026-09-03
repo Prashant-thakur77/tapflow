@@ -40,7 +40,7 @@ function errText(e: unknown): string {
 
 export const TapView: React.FC = () => {
   const { asset, intervalSec, stake, taps, setAsset, setIntervalSec, setStake, pushTap } = useTapStore();
-  const { window: w, windows, isLoading, error: windowsError } = useCurrentWindow(asset, intervalSec);
+  const { window: w, windows, isLoading, rolling, error: windowsError } = useCurrentWindow(asset, intervalSec);
   const { left, pct } = useCountdown(w);
   const spot = useSpot(asset);
   const { data: opening } = useOpeningPrice(w);
@@ -212,9 +212,17 @@ export const TapView: React.FC = () => {
                 left={left}
                 pct={pct}
                 size={150}
-                label={w ? `${asset} · ${fmtCadence(w.intervalSec)}` : isLoading ? "loading" : "no window"}
+                label={w ? `${asset} · ${fmtCadence(w.intervalSec)}` : isLoading ? "loading" : rolling ? `${asset} · ${fmtCadence(intervalSec)}` : "no window"}
                 tone={tone}
-                sub={locking && w ? "locking…" : w ? `closes ${new Date(w.expiry * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : undefined}
+                sub={
+                  locking && w
+                    ? "locking…"
+                    : w
+                      ? `closes ${new Date(w.expiry * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                      : rolling
+                        ? "next window opening…"
+                        : undefined
+                }
               />
               <div className="flex-1 min-w-0">
                 <div className="text-[10px] uppercase tracking-[0.25em] text-bn-text-muted">{asset} now</div>

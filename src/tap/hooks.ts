@@ -23,28 +23,39 @@ import {
   type TapWindow,
 } from "../lib/ec";
 
-/** Every live window on the venue, refreshed every 10s and the moment one closes. */
-export function useLiveWindows() {
+/**
+ * Every live window on the venue. Refreshed every 15s normally; every 3s while
+ * a caller is waiting for a series to roll over (`fast`), because the indexer
+ * lists a successor window a few seconds after the previous one expires.
+ */
+export function useLiveWindows(opts: { fast?: boolean } = {}) {
   const q = useQuery({
     queryKey: ["windows"],
     queryFn: () => listLiveWindows(getClient()),
-    refetchInterval: 15_000,
-    staleTime: 5_000,
+    refetchInterval: opts.fast ? 3_000 : 15_000,
+    staleTime: 2_000,
   });
   return q;
 }
 
 /** The window to show for the chosen asset + cadence; refetches when it expires. */
 export function useCurrentWindow(asset: Asset, intervalSec: number) {
-  const { data: windows = [], refetch, isLoading, error } = useLiveWindows();
+  const [rolling, setRolling] = useState(false);
+  const { data: windows = [], refetch, isLoading, error } = useLiveWindows({ fast: rolling });
   const w = useMemo(() => pickWindow(windows, asset, intervalSec, 10), [windows, asset, intervalSec]);
+  // No window for this series but the venue has others: we are in the gap
+  // between expiry and the successor being indexed.
+  const gap = !w && windows.length > 0;
+  useEffect(() => {
+    setRolling(gap);
+  }, [gap]);
   useEffect(() => {
     if (!w) return;
     const ms = Math.max(500, w.expiry * 1000 - Date.now() + 1500);
     const t = setTimeout(() => refetch(), ms);
     return () => clearTimeout(t);
   }, [w, refetch]);
-  return { window: w, windows, isLoading, error: error as Error | null };
+  return { window: w, windows, isLoading, rolling: gap, error: error as Error | null };
 }
 
 /** A wall clock that re-renders every `intervalMs` (render-pure: no Date.now() in render). */
