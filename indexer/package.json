@@ -1,0 +1,25 @@
+{
+  "name": "tapflow-indexer",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "TapFlow F4: reads DreamDEX Event Contract fills from Somnia Shannon into SQLite and serves the leaderboard / stats / feed / share-card API.",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@somnia-chain/markets-sdk": "^0.28.1",
+    "@somnia-chain/reactivity": "^0.2.1",
+    "better-sqlite3": "^11.0.0",
+    "dotenv": "^16.4.5",
+    "viem": "^2.46.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
