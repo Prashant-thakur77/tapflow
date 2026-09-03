@@ -28,27 +28,28 @@ import {
  * a caller is waiting for a series to roll over (`fast`), because the indexer
  * lists a successor window a few seconds after the previous one expires.
  */
-export function useLiveWindows(opts: { fast?: boolean } = {}) {
+export function useLiveWindows(opts: { fastWhen?: (windows: TapWindow[]) => boolean } = {}) {
+  const { fastWhen } = opts;
   const q = useQuery({
     queryKey: ["windows"],
     queryFn: () => listLiveWindows(getClient()),
-    refetchInterval: opts.fast ? 3_000 : 15_000,
+    refetchInterval: (query) => (fastWhen?.(query.state.data ?? []) ? 3_000 : 15_000),
     staleTime: 2_000,
   });
   return q;
 }
 
+/** No window for this series while the venue has others: the gap between expiry and the successor being indexed. */
+const inRollover = (windows: TapWindow[], asset: Asset, intervalSec: number) =>
+  windows.length > 0 && !pickWindow(windows, asset, intervalSec, 10);
+
 /** The window to show for the chosen asset + cadence; refetches when it expires. */
 export function useCurrentWindow(asset: Asset, intervalSec: number) {
-  const [rolling, setRolling] = useState(false);
-  const { data: windows = [], refetch, isLoading, error } = useLiveWindows({ fast: rolling });
+  const { data: windows = [], refetch, isLoading, error } = useLiveWindows({
+    fastWhen: (ws) => inRollover(ws, asset, intervalSec),
+  });
   const w = useMemo(() => pickWindow(windows, asset, intervalSec, 10), [windows, asset, intervalSec]);
-  // No window for this series but the venue has others: we are in the gap
-  // between expiry and the successor being indexed.
-  const gap = !w && windows.length > 0;
-  useEffect(() => {
-    setRolling(gap);
-  }, [gap]);
+  const gap = inRollover(windows, asset, intervalSec);
   useEffect(() => {
     if (!w) return;
     const ms = Math.max(500, w.expiry * 1000 - Date.now() + 1500);

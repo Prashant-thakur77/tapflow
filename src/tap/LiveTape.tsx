@@ -9,7 +9,8 @@ function ago(tsSec: number): string {
 
 /** Every fill on this window's pool as it lands — proof the market is alive. */
 export const LiveTape: React.FC<{ w: TapWindow | undefined; me?: string }> = ({ w, me }) => {
-  const fills = useLiveFills(w?.pool, 14);
+  // Pools are recycled across windows: keep only this market's fills.
+  const fills = useLiveFills(w?.pool, 40).filter((f) => w && f.market_id.toLowerCase() === w.marketId.toLowerCase()).slice(0, 14);
   const rows = fills.map((f) => {
     const side = f.takerSide ?? f.makerSide;
     const up = side === "BUY_YES" || side === "SELL_NO";
