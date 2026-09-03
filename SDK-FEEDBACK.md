@@ -88,3 +88,42 @@ use reactivity".
   the SDK README would help TypeScript users.
 - `getMarketOnchain` results contain bigints, so `JSON.stringify` throws.
   Expected, but a `toJSON`-friendly variant for logging would be nice.
+
+## 11. No delegated binary write in the SDK (blocks non-custodial session keys)
+
+The owner-side operator admin calls are all there — `setOperatorApprovalForPool`,
+`setOperatorApprovalGlobal`, `setManualVaultMode`, `depositVault` — and the
+binary pool ABI has `placeBinaryOrderFor(address owner, …)`. But the SDK's
+`trader.placeOrder` has no `owner`/`onBehalfOf`, and there is no
+`trader.placeBinaryOrderFor` wrapper. So an operator (session) key cannot place
+a binary order *for* an owner through the SDK without dropping to raw viem. We
+shipped a capped session **wallet** instead and stubbed the operator path
+(`src/lib/ec/operator.ts`) pending that wrapper. A `placeOrderFor` on the trader
+would make non-custodial session keys a few lines.
+
+## 12. Operators docs are spot-only
+
+`/trading/readme-1/operators` documents the registry against SpotPools. Nothing
+in the Event Contracts section confirms the same `OperatorPermissionsRegistry`
+grants (`placeOrderFor` selector `0x80054449`) apply to binary pools, or which
+registry address to use. We inferred it from the ABI. A one-line note would help.
+
+## 13. Reactivity: the 32-STT floor bites the *contract*, not the EOA
+
+`SomniaExtensions.subscribe` checks `address(this).balance >= 32 ether`, where
+`this` is the subscribing **contract**. So each handler contract must itself hold
+32 STT at subscribe time — two handlers means ~64 STT, which is a lot of faucet
+STT for a hackathon. Worth calling out prominently in the reactivity quickstart,
+and the faucet should hand out enough on request.
+
+## 14. Small Foundry/Somnia build notes (reactivity-contracts)
+
+- `@somnia-chain/reactivity-contracts` pins `pragma solidity 0.8.30`, so your
+  whole project must be on 0.8.30. Fine, but pin it in the README.
+- A public constant on one contract is not readable as `Other.CONST` from another
+  contract (Solidity rule, not Somnia) — expose it as a file-level constant or an
+  instance getter. Minor, but a copy-paste trap when wiring a handler to an
+  emitter's event topic.
+- Building a `deployments.json` string with `string.concat` + several
+  `vm.toString` in a deploy script hits "stack too deep" without `via_ir`. Ship
+  the reactivity examples with `via_ir = true` so newcomers don't chase it.
