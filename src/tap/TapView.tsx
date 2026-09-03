@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import { useAccount, useChainId, useConnect, useSwitchChain } from "wagmi";
 import toast from "react-hot-toast";
 import confetti from "canvas-confetti";
-import { ExternalLink, Droplets } from "lucide-react";
-import { STAKE_PRESETS, useTapStore } from "../store";
+import { ExternalLink, Droplets, Flame } from "lucide-react";
+import { STAKE_PRESETS, statsOf, useTapStore } from "../store";
 import {
   CHAIN_ID,
   EXPLORER_URL,
@@ -20,12 +20,17 @@ import {
   type Side,
 } from "../lib/ec";
 import { useBalances, useCountdown, useCurrentWindow, useOpeningPrice, useRefreshAfterTx, useSpot, useTapQuotes, useWindowPosition } from "./hooks";
+import { useSettlement } from "./useSettlement";
 import { WindowRing } from "./WindowRing";
 import { TapButton } from "./TapButton";
+import { PriceTape } from "./PriceTape";
+import { OddsBar } from "./OddsBar";
+import { LiveTape } from "./LiveTape";
+import { ResultCard } from "./ResultCard";
+import { TickNumber } from "./TickNumber";
 import { HowItWorksModal } from "../HowItWorksModal";
 
-const fmtPx = (n: number, decimals = 2) =>
-  n.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+const fmtPx = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function errText(e: unknown): string {
   const m = (e as { shortMessage?: string; message?: string })?.shortMessage ?? (e as Error)?.message ?? String(e);
@@ -34,7 +39,7 @@ function errText(e: unknown): string {
 }
 
 export const TapView: React.FC = () => {
-  const { asset, intervalSec, stake, setAsset, setIntervalSec, setStake, pushTap } = useTapStore();
+  const { asset, intervalSec, stake, taps, setAsset, setIntervalSec, setStake, pushTap } = useTapStore();
   const { window: w, windows, isLoading, error: windowsError } = useCurrentWindow(asset, intervalSec);
   const { left, pct } = useCountdown(w);
   const spot = useSpot(asset);
@@ -43,6 +48,8 @@ export const TapView: React.FC = () => {
   const { data: pos, refetch: refetchPos } = useWindowPosition(w);
   const { usdc, refetch: refetchBal } = useBalances();
   const refreshAll = useRefreshAfterTx();
+  const { unseen, pending } = useSettlement();
+  const stats = statsOf(taps);
 
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
@@ -64,7 +71,7 @@ export const TapView: React.FC = () => {
   })();
   const move = openPx && spotPx ? (spotPx - openPx) / openPx : null;
   const tone: "up" | "down" | "flat" = move === null ? "flat" : move >= 0 ? "up" : "down";
-  const locking = left < 5;
+  const locking = !!w && left < 5;
   const lowBalance = usdc !== undefined && usdc < toRaw(stake);
 
   const onTap = async (side: Side) => {
@@ -90,18 +97,19 @@ export const TapView: React.FC = () => {
         toast.success(
           <span>
             {side} filled: {fmtUsdc(r.filled)} shares @ {fmtProb(r.avgPrice)}{" "}
-            <a href={txUrl(r.hash)} target="_blank" rel="noreferrer" className="underline text-[#8aa6f9]">
+            <a href={txUrl(r.hash)} target="_blank" rel="noreferrer" className="underline text-accent-soft">
               tx ↗
             </a>
           </span>,
           { id, duration: 8000 },
         );
-        confetti({ particleCount: 90, spread: 70, origin: { y: 0.7 }, colors: [side === "UP" ? "#2ebd85" : "#f6465d", "#ffffff", "#0847F7"] });
+        confetti({ particleCount: 70, spread: 60, origin: { y: 0.75 }, colors: [side === "UP" ? "#2ebd85" : "#f6465d", "#ffffff", "#0847F7"] });
         pushTap({
           at: Date.now(),
           asset,
           intervalSec: w.intervalSec,
           marketId: w.marketId,
+          expiry: w.expiry,
           side,
           stake,
           filled: Number(r.filled) / 1e6,
@@ -148,126 +156,187 @@ export const TapView: React.FC = () => {
     }
   };
 
-  const segBtn = (active: boolean) =>
-    `px-3 py-1.5 rounded text-xs font-bold transition-all ${active ? "bg-[#0847F7] text-white shadow-[0_0_12px_rgba(8,71,247,0.4)]" : "text-bn-text-dim hover:text-white hover:bg-white/5"}`;
+  const disabled = !w || locking || busy !== null;
+
+  // Dev-only design preview of the settlement card (?preview=win|loss|void).
+  // Stripped from production builds; the real card is driven by useSettlement.
+  const preview = import.meta.env.DEV ? new URLSearchParams(window.location.search).get("preview") : null;
+  const previewTap =
+    preview && w
+      ? {
+          at: Date.now(),
+          asset,
+          intervalSec: w.intervalSec,
+          marketId: w.marketId,
+          expiry: w.expiry,
+          side: "UP" as Side,
+          stake: 5,
+          filled: 6.41,
+          paid: 4.86,
+          avgPrice: 0.758,
+          hash: "0x" + "ab".repeat(32),
+          result: preview as "win" | "loss" | "void",
+          payout: preview === "win" ? 6.41 : preview === "void" ? 3.2 : 0,
+          pnl: preview === "win" ? 1.55 : preview === "void" ? -1.66 : -4.86,
+        }
+      : null;
 
   return (
-    <div className="flex-1 flex flex-col p-3 sm:p-4 md:p-6 relative overflow-hidden">
+    <div className="flex-1 flex flex-col relative">
       <HowItWorksModal />
-      <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] rounded-full pointer-events-none opacity-40" style={{ background: "radial-gradient(circle, rgba(8,71,247,0.08) 0%, transparent 70%)" }} />
+      <ResultCard tap={previewTap ?? unseen} />
 
-      <div className="relative z-10 w-full max-w-md mx-auto flex flex-col gap-3 sm:gap-4">
-        {/* asset + cadence */}
-        <div className="sci-card p-2 flex items-center justify-between gap-2">
-          <div className="flex gap-1">
-            {ASSETS.map((a) => (
-              <button key={a} className={segBtn(asset === a)} onClick={() => setAsset(a)}>
-                {a}
-              </button>
-            ))}
+      <div className="relative z-10 w-full max-w-md xl:max-w-5xl mx-auto px-3 sm:px-4 pt-3 sm:pt-4 pb-4 flex flex-col xl:grid xl:grid-cols-[1fr_380px] xl:gap-5 gap-3">
+        {/* ── left column: the window ── */}
+        <div className="flex flex-col gap-3 min-w-0">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="tf-seg">
+              {ASSETS.map((a) => (
+                <button key={a} data-on={asset === a} onClick={() => setAsset(a)}>
+                  {a}
+                </button>
+              ))}
+            </div>
+            <div className="tf-seg">
+              {(available.length ? available : [300, 900, 3600]).slice(0, 5).map((s) => (
+                <button key={s} data-on={intervalSec === s} onClick={() => setIntervalSec(s)}>
+                  {fmtCadence(s)}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="flex gap-1">
-            {(available.length ? available : [300, 900, 3600]).slice(0, 4).map((s) => (
-              <button key={s} className={segBtn(intervalSec === s)} onClick={() => setIntervalSec(s)}>
-                {fmtCadence(s)}
-              </button>
-            ))}
-          </div>
-        </div>
 
-        {/* ring + price */}
-        <div className="sci-card p-4 sm:p-5">
-          <WindowRing
-            left={left}
-            pct={pct}
-            label={w ? `${asset} ${fmtCadence(w.intervalSec)} window` : isLoading ? "loading" : "no window"}
-            tone={tone}
-            sub={locking && w ? "locking…" : w ? `closes ${new Date(w.expiry * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : undefined}
-          />
-          <div className="mt-3 flex items-end justify-center gap-4">
-            <div className="text-center">
-              <div className="text-[10px] uppercase tracking-widest text-bn-text-muted">{asset} now</div>
-              <div className="font-mono text-xl sm:text-2xl font-black" style={{ color: tone === "up" ? "#2ebd85" : tone === "down" ? "#f6465d" : "#fff" }}>
-                {spotPx ? `$${fmtPx(spotPx)}` : "—"}
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-[10px] uppercase tracking-widest text-bn-text-muted">opened at</div>
-              <div className="font-mono text-base sm:text-lg font-bold text-bn-text-dim">{openPx ? `$${fmtPx(openPx)}` : "—"}</div>
-            </div>
-            {move !== null ? (
-              <div className="text-center">
-                <div className="text-[10px] uppercase tracking-widest text-bn-text-muted">move</div>
-                <div className={`font-mono text-base sm:text-lg font-bold ${move >= 0 ? "text-bn-green" : "text-bn-red"}`}>
-                  {move >= 0 ? "▲" : "▼"} {(Math.abs(move) * 100).toFixed(3)}%
+          <div className="tf-card p-4 sm:p-5">
+            <div className="flex items-center gap-4 sm:gap-6">
+              <WindowRing
+                left={left}
+                pct={pct}
+                size={150}
+                label={w ? `${asset} · ${fmtCadence(w.intervalSec)}` : isLoading ? "loading" : "no window"}
+                tone={tone}
+                sub={locking && w ? "locking…" : w ? `closes ${new Date(w.expiry * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : undefined}
+              />
+              <div className="flex-1 min-w-0">
+                <div className="text-[10px] uppercase tracking-[0.25em] text-bn-text-muted">{asset} now</div>
+                <div className="font-mono font-extrabold text-3xl sm:text-4xl tabular leading-none mt-1 truncate" style={{ color: tone === "up" ? "#2ebd85" : tone === "down" ? "#f6465d" : "#fff" }}>
+                  {spotPx ? <TickNumber value={spotPx} format={(n) => `$${fmtPx(n)}`} /> : <span className="tf-skeleton inline-block w-40 h-8 align-middle" />}
+                </div>
+                <div className="mt-3 flex items-center gap-4">
+                  <div>
+                    <div className="text-[9px] uppercase tracking-[0.2em] text-bn-text-muted">open</div>
+                    <div className="font-mono text-sm sm:text-base font-bold text-bn-text-dim tabular">{openPx ? `$${fmtPx(openPx)}` : <span className="tf-skeleton inline-block w-20 h-4 align-middle" />}</div>
+                  </div>
+                  {move !== null ? (
+                    <div>
+                      <div className="text-[9px] uppercase tracking-[0.2em] text-bn-text-muted">vs open</div>
+                      <div className={`font-mono text-sm sm:text-base font-extrabold tabular ${move >= 0 ? "text-up" : "text-down"}`}>
+                        {move >= 0 ? "▲" : "▼"} {(Math.abs(move) * 100).toFixed(3)}%
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               </div>
+            </div>
+            <div className="mt-4">
+              <PriceTape asset={asset} open={openPx} />
+            </div>
+            <div className="mt-4">
+              <OddsBar up={quotes.up?.impliedProb ?? null} down={quotes.down?.impliedProb ?? null} />
+            </div>
+          </div>
+
+          <div className="hidden xl:block">
+            <LiveTape w={w} me={address} />
+          </div>
+        </div>
+
+        {/* ── right column: the decision ── */}
+        <div className="flex flex-col gap-3 min-w-0">
+          <div className="tf-card px-3 py-2 flex items-center justify-between">
+            <span className="text-[10px] uppercase tracking-[0.25em] text-bn-text-muted">stake</span>
+            <div className="tf-seg">
+              {STAKE_PRESETS.map((n) => (
+                <button key={n} data-on={stake === n} onClick={() => setStake(n)}>
+                  {n} <span className="opacity-60">tUSDC</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div
+            className="sticky bottom-[64px] xl:static z-20 flex gap-3 py-2 xl:py-0 -mx-3 px-3 sm:mx-0 sm:px-0"
+            style={{ background: "linear-gradient(180deg, rgba(7,9,15,0) 0%, rgba(7,9,15,0.92) 25%)" }}
+          >
+            <TapButton side="UP" quote={quotes.up} stake={stake} busy={busy === "UP"} disabled={disabled} onTap={onTap} />
+            <TapButton side="DOWN" quote={quotes.down} stake={stake} busy={busy === "DOWN"} disabled={disabled} onTap={onTap} />
+          </div>
+
+          <div className="tf-card p-3 text-xs flex flex-col gap-2">
+            {!isConnected ? (
+              <div className="text-bn-text-dim">Tap UP or DOWN to connect a wallet on Somnia Shannon.</div>
+            ) : chainId !== CHAIN_ID ? (
+              <div className="text-amber">Wrong network. Tapping switches you to Somnia Shannon (50312).</div>
+            ) : lowBalance ? (
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-amber">tUSDC balance {usdc !== undefined ? fmtUsdc(usdc) : "—"} is below your stake.</span>
+                <button onClick={faucet} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-accent text-white font-bold">
+                  <Droplets size={13} /> Faucet
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between text-bn-text-dim">
+                <span>
+                  this window: <span className="text-up font-bold">Up {pos ? fmtUsdc(pos.up) : "0.00"}</span> · <span className="text-down font-bold">Down {pos ? fmtUsdc(pos.down) : "0.00"}</span>
+                </span>
+                <span className="font-mono">{address ? short(address) : ""}</span>
+              </div>
+            )}
+            {stats.taps > 0 ? (
+              <div className="flex items-center justify-between text-bn-text-dim border-t border-white/5 pt-2">
+                <span className="flex items-center gap-2">
+                  {stats.streak > 0 ? (
+                    <span className="flex items-center gap-1 text-amber font-bold">
+                      <Flame size={12} /> {stats.streak}-streak
+                    </span>
+                  ) : null}
+                  <span>
+                    {stats.wins}W · {stats.losses}L
+                  </span>
+                  {pending.length ? <span className="text-bn-text-muted">· {pending.length} settling</span> : null}
+                </span>
+                <span className={`font-mono font-bold ${stats.pnl >= 0 ? "text-up" : "text-down"}`}>
+                  {stats.pnl >= 0 ? "+" : ""}
+                  {stats.pnl.toFixed(2)}
+                </span>
+              </div>
             ) : null}
-          </div>
-        </div>
-
-        {/* stake */}
-        <div className="sci-card p-2 flex items-center justify-between">
-          <span className="text-xs text-bn-text-muted pl-2 uppercase tracking-widest">stake</span>
-          <div className="flex gap-1">
-            {STAKE_PRESETS.map((n) => (
-              <button key={n} className={segBtn(stake === n)} onClick={() => setStake(n)}>
-                {n} tUSDC
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* tap */}
-        <div className="flex gap-3">
-          <TapButton side="UP" quote={quotes.up} busy={busy === "UP"} disabled={!w || locking || busy !== null} onTap={onTap} />
-          <TapButton side="DOWN" quote={quotes.down} busy={busy === "DOWN"} disabled={!w || locking || busy !== null} onTap={onTap} />
-        </div>
-
-        {/* status strip */}
-        <div className="sci-card p-3 text-xs flex flex-col gap-2">
-          {!isConnected ? (
-            <div className="text-bn-text-dim">Tap UP or DOWN to connect a wallet on Somnia Shannon.</div>
-          ) : chainId !== CHAIN_ID ? (
-            <div className="text-[#f5a524]">Wrong network. Tapping switches you to Somnia Shannon (50312).</div>
-          ) : lowBalance ? (
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[#f5a524]">tUSDC balance {usdc !== undefined ? fmtUsdc(usdc) : "—"} is below your stake.</span>
-              <button onClick={faucet} className="flex items-center gap-1 px-2.5 py-1 rounded bg-[#0847F7] text-white font-bold">
-                <Droplets size={13} /> Faucet
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center justify-between text-bn-text-dim">
-              <span>
-                this window: <span className="text-bn-green font-semibold">Up {pos ? fmtUsdc(pos.up) : "0.00"}</span> ·{" "}
-                <span className="text-bn-red font-semibold">Down {pos ? fmtUsdc(pos.down) : "0.00"}</span>
-              </span>
-              <span>{address ? short(address) : ""}</span>
-            </div>
-          )}
-          {lastTx ? (
-            <div className="flex items-center justify-between text-bn-text-dim border-t border-white/5 pt-2">
-              <span>
-                last tap: <span className={lastTx.side === "UP" ? "text-bn-green font-bold" : "text-bn-red font-bold"}>{lastTx.side}</span> {fmtUsdc(lastTx.filled)} shares @ {fmtProb(lastTx.avg)}
-              </span>
-              <a href={txUrl(lastTx.hash)} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-[#8aa6f9] hover:underline">
-                {short(lastTx.hash, 5)} <ExternalLink size={12} />
-              </a>
-            </div>
-          ) : null}
-          <div className="flex items-center justify-between text-[10px] text-bn-text-muted border-t border-white/5 pt-2">
-            <span className="flex items-center gap-1.5">
-              <span className={`inline-block w-1.5 h-1.5 rounded-full ${quotes.source === "live" ? "bg-bn-green animate-pulse" : quotes.source === "poll" ? "bg-[#f5a524]" : "bg-white/20"}`} />
-              book {quotes.source === "live" ? "live" : quotes.source === "poll" ? "polled (tail " + quotes.watch + ")" : "loading…"}
-            </span>
-            {w ? (
-              <a href={`${EXPLORER_URL}/address/${w.pool}`} target="_blank" rel="noreferrer" className="hover:text-white font-mono">
-                pool {short(w.pool)}
-              </a>
+            {lastTx ? (
+              <div className="flex items-center justify-between text-bn-text-dim border-t border-white/5 pt-2">
+                <span>
+                  last tap: <span className={lastTx.side === "UP" ? "text-up font-bold" : "text-down font-bold"}>{lastTx.side}</span> {fmtUsdc(lastTx.filled)} @ {fmtProb(lastTx.avg)}
+                </span>
+                <a href={txUrl(lastTx.hash)} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-accent-soft hover:underline font-mono">
+                  {short(lastTx.hash, 5)} <ExternalLink size={12} />
+                </a>
+              </div>
             ) : null}
+            <div className="flex items-center justify-between text-[10px] text-bn-text-muted border-t border-white/5 pt-2">
+              <span className="flex items-center gap-1.5">
+                <span className={`inline-block w-1.5 h-1.5 rounded-full ${quotes.source === "live" ? "bg-up animate-pulse" : quotes.source === "poll" ? "bg-amber" : "bg-white/20"}`} />
+                book {quotes.source === "live" ? "live" : quotes.source === "poll" ? `polled · tail ${quotes.watch}` : "loading…"}
+              </span>
+              {w ? (
+                <a href={`${EXPLORER_URL}/address/${w.pool}`} target="_blank" rel="noreferrer" className="hover:text-white font-mono">
+                  pool {short(w.pool)}
+                </a>
+              ) : null}
+            </div>
+            {windowsError ? <div className="text-down break-all">Couldn't load windows: {errText(windowsError)}</div> : null}
           </div>
-          {windowsError ? <div className="text-bn-red break-all">Couldn't load windows: {errText(windowsError)}</div> : null}
+
+          <div className="xl:hidden">
+            <LiveTape w={w} me={address} />
+          </div>
         </div>
       </div>
     </div>

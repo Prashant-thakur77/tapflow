@@ -29,7 +29,7 @@ export const HistoryView: React.FC = () => {
 
   return (
     <div className="flex-1 p-3 sm:p-4 md:p-6">
-      <div className="max-w-2xl mx-auto sci-card p-4">
+      <div className="max-w-2xl mx-auto tf-card p-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-bold text-sm">On-chain fills</h2>
           <span className="text-xs text-bn-text-muted">{rows.length}</span>

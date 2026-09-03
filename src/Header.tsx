@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import toast from "react-hot-toast";
 import { useAccount, useChainId, useConnect, useDisconnect, useSwitchChain } from "wagmi";
-import { ChevronDown, Droplets, ExternalLink, LogOut } from "lucide-react";
-import { useTapStore } from "./store";
+import { ChevronDown, Droplets, ExternalLink, Flame, LogOut } from "lucide-react";
+import { statsOf, useTapStore } from "./store";
 import { CHAIN_ID, addressUrl, fmtUsdc, getExchange, short, txUrl } from "./lib/ec";
 import { useBalances, useRefreshAfterTx, useSpot } from "./tap/hooks";
 
@@ -10,6 +10,8 @@ const fmtPx = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits
 
 export const Header: React.FC = () => {
   const asset = useTapStore((s) => s.asset);
+  const taps = useTapStore((s) => s.taps);
+  const stats = statsOf(taps);
   const spot = useSpot(asset);
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
@@ -54,7 +56,7 @@ export const Header: React.FC = () => {
           <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-black" style={{ background: "linear-gradient(135deg, #0847F7 0%, #002280 100%)", boxShadow: "0 2px 8px rgba(8,71,247,0.3)" }}>
             ⚡
           </div>
-          <span className="hidden sm:block text-lg font-black tracking-tighter italic">
+          <span className="hidden sm:block font-display font-bold text-lg tracking-tight">
             TapFlow<span style={{ color: "#0847F7" }}>.</span>
           </span>
         </div>
@@ -71,6 +73,17 @@ export const Header: React.FC = () => {
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
+        {stats.streak > 0 ? (
+          <span className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold text-amber" style={{ background: "rgba(245,165,36,0.12)", border: "1px solid rgba(245,165,36,0.3)" }}>
+            <Flame size={12} /> {stats.streak}
+          </span>
+        ) : null}
+        {stats.taps > 0 ? (
+          <span className={`hidden sm:inline font-mono text-xs font-bold ${stats.pnl >= 0 ? "text-up" : "text-down"}`}>
+            {stats.pnl >= 0 ? "+" : ""}
+            {stats.pnl.toFixed(2)}
+          </span>
+        ) : null}
         {!isConnected ? (
           <button onClick={() => connect({ connector: connectors[0] })} className="px-3 py-1.5 font-bold rounded bg-[#0847F7] text-white active:scale-95 transition-transform text-xs whitespace-nowrap">
             CONNECT
@@ -88,7 +101,7 @@ export const Header: React.FC = () => {
               <ChevronDown size={13} />
             </button>
             {open ? (
-              <div className="absolute right-0 mt-2 w-64 sci-card p-3 z-50 text-xs space-y-2">
+              <div className="absolute right-0 mt-2 w-64 tf-card p-3 z-50 text-xs space-y-2">
                 <div className="flex justify-between">
                   <span className="text-bn-text-muted">tUSDC</span>
                   <span className="font-mono text-bn-green">{usdc !== undefined ? fmtUsdc(usdc) : "—"}</span>

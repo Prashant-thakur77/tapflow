@@ -17,7 +17,7 @@ export const HowItWorksModal: React.FC = () => {
     <Dialog open={!seen} onClose={() => setSeen(true)} className="relative z-50">
       <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" />
       <div className="fixed inset-0 flex items-center justify-center p-4">
-        <DialogPanel className="sci-card w-full max-w-md p-5 sm:p-6">
+        <DialogPanel className="tf-card w-full max-w-md p-5 sm:p-6">
           <div className="label-tag inline-block mb-3">HOW TAPFLOW WORKS</div>
           <div className="space-y-3">
             {STEPS.map(({ Icon, title, body }, i) => (

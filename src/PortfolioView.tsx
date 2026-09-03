@@ -57,17 +57,17 @@ export const PortfolioView: React.FC = () => {
     <div className="flex-1 p-3 sm:p-4 md:p-6">
       <div className="max-w-2xl mx-auto flex flex-col gap-4">
         <div className="grid grid-cols-2 gap-3">
-          <div className="sci-card p-4">
+          <div className="tf-card p-4">
             <div className="text-[10px] uppercase tracking-widest text-bn-text-muted">tUSDC</div>
             <div className="font-mono text-2xl font-black text-bn-green">{usdc !== undefined ? fmtUsdc(usdc) : "—"}</div>
           </div>
-          <div className="sci-card p-4">
+          <div className="tf-card p-4">
             <div className="text-[10px] uppercase tracking-widest text-bn-text-muted">STT gas</div>
             <div className="font-mono text-2xl font-black">{stt !== undefined ? (Number(stt) / 1e18).toFixed(3) : "—"}</div>
           </div>
         </div>
 
-        <section className="sci-card p-4">
+        <section className="tf-card p-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-bold text-sm flex items-center gap-2">
               <Gift size={15} className="text-[#8aa6f9]" /> Claimable winnings
@@ -97,7 +97,7 @@ export const PortfolioView: React.FC = () => {
           )}
         </section>
 
-        <section className="sci-card p-4">
+        <section className="tf-card p-4">
           <h2 className="font-bold text-sm mb-3">Open positions (live windows)</h2>
           {open.length === 0 ? (
             <div className="text-xs text-bn-text-dim">No shares in any open window. Go tap.</div>
@@ -118,7 +118,7 @@ export const PortfolioView: React.FC = () => {
           )}
         </section>
 
-        <section className="sci-card p-4">
+        <section className="tf-card p-4">
           <h2 className="font-bold text-sm mb-3">Your taps (this device)</h2>
           {taps.length === 0 ? (
             <div className="text-xs text-bn-text-dim">No taps yet.</div>
