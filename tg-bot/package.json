@@ -1,0 +1,24 @@
+{
+  "name": "tapflow-tg-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "TapFlow Telegram bot — /window /up /down /follow /board on DreamDEX Event Contracts (Somnia Shannon)",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "check": "tsx scripts/check.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@somnia-chain/markets-sdk": "^0.28.1",
+    "dotenv": "^16.4.7",
+    "grammy": "^1.46.0",
+    "viem": "^2.46.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "tsx": "^4.19.2",
+    "typescript": "~5.9.3"
+  }
+}
