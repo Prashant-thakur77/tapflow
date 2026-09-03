@@ -1,11 +1,5 @@
 import React from "react";
-import {
-  AreaChart,
-  History,
-  Wallet,
-  TrendingUp,
-  ShieldCheck,
-} from "lucide-react";
+import { Zap, Users, Wallet, History } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -18,11 +12,10 @@ export const Sidebar: React.FC = () => {
   const location = useLocation();
 
   const navItems = [
-    { icon: AreaChart, label: "Trade", path: "/trade" },
+    { icon: Zap, label: "Tap", path: "/tap" },
+    { icon: Users, label: "Leaders", path: "/leaders" },
+    { icon: Wallet, label: "Portfolio", path: "/portfolio" },
     { icon: History, label: "History", path: "/history" },
-    { icon: Wallet, label: "Trader Account", path: "/wallet" },
-    { icon: TrendingUp, label: "LP", path: "/lp" },
-    { icon: ShieldCheck, label: "CRE Workflows", path: "/cre-workflows" },
   ];
 
   return (
@@ -39,19 +32,15 @@ export const Sidebar: React.FC = () => {
         {/* Brand */}
         <div style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.05)" }}>
           <Link to="/" className="flex items-center gap-3 px-5 py-3">
-            <div className="w-12 h-12 rounded flex items-center justify-center shrink-0">
-              <img
-                src="/tapl.png"
-                alt="tapl logo"
-                className="w-12 h-12 object-contain"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = "none";
-                }}
-              />
+            <div
+              className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 text-white text-lg"
+              style={{ background: "linear-gradient(135deg, #0847F7 0%, #002280 100%)", boxShadow: "0 2px 8px rgba(8,71,247,0.3)" }}
+            >
+              ⚡
             </div>
             <div className="min-w-0">
-              <p className="text-xl font-semibold leading-tight text-[#0847F7]">
-                TAPL
+              <p className="text-xl font-black italic tracking-tighter leading-tight">
+                TapFlow<span className="text-[#0847F7]">.</span>
               </p>
             </div>
           </Link>

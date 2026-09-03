@@ -38,3 +38,7 @@ coverage/
 # Build
 build/
 refs/
+.env
+.env.*
+!.env.example
+market.json
