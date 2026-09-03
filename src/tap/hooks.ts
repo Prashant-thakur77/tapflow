@@ -47,13 +47,19 @@ export function useCurrentWindow(asset: Asset, intervalSec: number) {
   return { window: w, windows, isLoading, error: error as Error | null };
 }
 
-/** 100ms clock for the ring. */
-export function useCountdown(w: TapWindow | undefined) {
+/** A wall clock that re-renders every `intervalMs` (render-pure: no Date.now() in render). */
+export function useNow(intervalMs = 1000): number {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 100);
+    const t = setInterval(() => setNow(Date.now()), intervalMs);
     return () => clearInterval(t);
-  }, []);
+  }, [intervalMs]);
+  return now;
+}
+
+/** 100ms clock for the ring. */
+export function useCountdown(w: TapWindow | undefined) {
+  const now = useNow(100);
   if (!w) return { left: 0, pct: 0 };
   return { left: secondsLeft(w, now), pct: progress(w, now) };
 }

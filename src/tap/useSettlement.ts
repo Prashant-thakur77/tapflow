@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { getClient } from "../lib/ec";
 import { useTapStore, type TapRecord } from "../store";
+import { useNow } from "./hooks";
 
 const GIVE_UP_SEC = 45 * 60;
 
@@ -44,7 +45,8 @@ export function useSettlement() {
     };
   }, [taps, setResult]);
 
+  const now = useNow(5_000);
   const unseen = useMemo(() => taps.find((t) => t.result && !t.seen) ?? null, [taps]);
-  const pending = useMemo(() => taps.filter((t) => !t.result && t.expiry < Date.now() / 1000 + 1), [taps]);
+  const pending = useMemo(() => taps.filter((t) => !t.result && t.expiry < now / 1000 + 1), [taps, now]);
   return { unseen, pending };
 }

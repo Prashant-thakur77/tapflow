@@ -164,7 +164,7 @@ export const TapView: React.FC = () => {
   const previewTap =
     preview && w
       ? {
-          at: Date.now(),
+          at: 0,
           asset,
           intervalSec: w.intervalSec,
           marketId: w.marketId,

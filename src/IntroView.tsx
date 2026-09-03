@@ -2,7 +2,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Zap, Users, KeyRound, Bot, ArrowRight } from "lucide-react";
-import { useCountdown, useCurrentWindow, useLiveWindows, useSpot } from "./tap/hooks";
+import { useCountdown, useCurrentWindow, useLiveWindows, useNow, useSpot } from "./tap/hooks";
 import { WindowRing } from "./tap/WindowRing";
 import { fmtCadence, fmtCountdown } from "./lib/ec";
 
@@ -18,7 +18,8 @@ export const IntroView: React.FC = () => {
   const btc = useSpot("BTC");
   const { window: w } = useCurrentWindow("BTC", 300);
   const { left, pct } = useCountdown(w);
-  const strip = windows.map((x) => `${x.asset} ${fmtCadence(x.intervalSec)} · closes in ${fmtCountdown(x.expiry - Date.now() / 1000)}`);
+  const now = useNow(1000);
+  const strip = windows.map((x) => `${x.asset} ${fmtCadence(x.intervalSec)} · closes in ${fmtCountdown(x.expiry - now / 1000)}`);
 
   return (
     <div className="flex-1 overflow-y-auto relative z-10">
