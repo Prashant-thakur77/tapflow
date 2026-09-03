@@ -1,16 +1,179 @@
 import React from "react";
-import { Users } from "lucide-react";
+import { useAccount } from "wagmi";
+import toast from "react-hot-toast";
+import { Bot, Trophy, UserPlus, Zap } from "lucide-react";
+import { addressUrl, short, txUrl } from "./lib/ec";
+import type { Leader } from "./lib/api";
+import { useAgentFeed, useFollow, useLeaderboard, useStats } from "./tap/useLeaderboard";
 
-/** Placeholder until the fills indexer (F4) ships the leaderboard. */
-export const LeadersView: React.FC = () => (
-  <div className="flex-1 flex items-center justify-center p-6">
-    <div className="tf-card p-6 max-w-md text-center">
-      <Users className="mx-auto mb-3 text-[#8aa6f9]" size={28} />
-      <h2 className="font-bold text-base mb-1">Leaderboard</h2>
-      <p className="text-xs text-bn-text-dim leading-relaxed">
-        Wins, streaks, PnL and followers per tapper, built from on-chain fills. Following a leader mirrors their taps in the same block via Somnia
-        reactivity. Landing with the indexer and copy contracts.
-      </p>
-    </div>
+const medal = (i: number) => (i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`);
+const ago = (ms: number) => {
+  const s = Math.max(0, Math.floor((Date.now() - ms) / 1000));
+  return s < 60 ? `${s}s` : s < 3600 ? `${Math.floor(s / 60)}m` : `${Math.floor(s / 3600)}h`;
+};
+
+const StatTile: React.FC<{ label: string; value: string }> = ({ label, value }) => (
+  <div className="tf-card p-3 sm:p-4">
+    <div className="text-[10px] uppercase tracking-[0.2em] text-bn-text-muted">{label}</div>
+    <div className="font-mono font-extrabold text-xl sm:text-2xl tabular mt-0.5">{value}</div>
   </div>
 );
+
+export const LeadersView: React.FC = () => {
+  const { address } = useAccount();
+  const { data: stats } = useStats();
+  const { data: leaders, isLoading, isError } = useLeaderboard(50);
+  const { data: feed } = useAgentFeed(20);
+  const followMut = useFollow();
+
+  const onFollow = (leader: Leader) => {
+    if (!address) {
+      toast.error("Connect a wallet to follow");
+      return;
+    }
+    followMut.mutate(
+      { follower: address, leader: leader.address },
+      {
+        onSuccess: () => toast.success(`Following ${leader.label ?? short(leader.address)}`),
+        onError: () => toast.error("Follow failed — is the indexer running?"),
+      },
+    );
+  };
+
+  return (
+    <div className="flex-1 p-3 sm:p-4 md:p-6">
+      <div className="max-w-4xl mx-auto flex flex-col gap-4">
+        <div>
+          <h1 className="font-display font-bold text-2xl tracking-tight">Leaderboard</h1>
+          <p className="text-xs text-bn-text-dim mt-1">
+            Ranked by realized PnL on settled windows. Follow a tapper and their taps mirror into yours in the same block via Somnia reactivity.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <StatTile label="wallets" value={stats ? String(stats.wallets) : "—"} />
+          <StatTile label="taps" value={stats ? String(stats.taps) : "—"} />
+          <StatTile label="volume" value={stats ? `${Math.round(stats.volumeUsdc).toLocaleString()}` : "—"} />
+          <StatTile label="windows" value={stats ? String(stats.windows) : "—"} />
+        </div>
+
+        <div className="grid lg:grid-cols-[1fr_320px] gap-4">
+          {/* leaderboard */}
+          <section className="tf-card p-3 sm:p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Trophy size={15} className="text-amber" />
+              <h2 className="font-bold text-sm">Top tappers</h2>
+            </div>
+            {isError ? (
+              <div className="text-xs text-bn-text-dim">
+                Leaderboard offline. Start the indexer: <code className="text-accent-soft">cd indexer && npm start</code>
+              </div>
+            ) : isLoading ? (
+              <div className="space-y-2">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="tf-skeleton h-11 w-full" />
+                ))}
+              </div>
+            ) : !leaders?.length ? (
+              <div className="text-xs text-bn-text-dim">No settled taps yet. Be the first to build a record.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="text-bn-text-muted text-left">
+                    <tr>
+                      <th className="py-1.5 font-medium w-8">#</th>
+                      <th className="font-medium">tapper</th>
+                      <th className="font-medium text-right">win rate</th>
+                      <th className="font-medium text-right">streak</th>
+                      <th className="font-medium text-right">PnL</th>
+                      <th className="font-medium text-right">followers</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leaders.map((l, i) => {
+                      const mine = address && l.address.toLowerCase() === address.toLowerCase();
+                      return (
+                        <tr key={l.address} className="border-t border-white/5 table-row-hover">
+                          <td className="py-2 font-mono">{medal(i)}</td>
+                          <td>
+                            <a href={addressUrl(l.address)} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 hover:text-white font-mono">
+                              {l.isAgent ? <Bot size={13} className="text-accent-soft" /> : null}
+                              <span className={l.isAgent ? "text-accent-soft font-bold" : ""}>{l.label ?? short(l.address)}</span>
+                              {mine ? <span className="text-[10px] text-bn-text-muted">(you)</span> : null}
+                            </a>
+                          </td>
+                          <td className="text-right font-mono">
+                            {Math.round(l.winRate * 100)}%<span className="text-bn-text-muted"> ({l.wins}/{l.wins + l.losses})</span>
+                          </td>
+                          <td className="text-right font-mono">
+                            {l.streak > 0 ? <span className="text-amber font-bold">🔥{l.streak}</span> : "—"}
+                          </td>
+                          <td className={`text-right font-mono font-bold ${l.pnlUsdc >= 0 ? "text-up" : "text-down"}`}>
+                            {l.pnlUsdc >= 0 ? "+" : ""}
+                            {l.pnlUsdc.toFixed(2)}
+                          </td>
+                          <td className="text-right font-mono">{l.followers}</td>
+                          <td className="text-right">
+                            {!mine ? (
+                              <button
+                                onClick={() => onFollow(l)}
+                                disabled={followMut.isPending}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/5 hover:bg-accent hover:text-white font-bold disabled:opacity-50"
+                              >
+                                <UserPlus size={11} /> follow
+                              </button>
+                            ) : null}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <p className="text-[10px] text-bn-text-muted mt-3">
+              Following registers your interest here; the same-block on-chain mirror runs through <code>MirrorVault</code> + <code>CopyHandler</code>{" "}
+              once you deposit and the copy contracts are deployed.
+            </p>
+          </section>
+
+          {/* agent feed */}
+          <section className="tf-card p-3 sm:p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Zap size={15} className="text-up" />
+              <h2 className="font-bold text-sm">TapBot feed</h2>
+            </div>
+            {!feed?.length ? (
+              <div className="text-xs text-bn-text-dim">
+                No agent activity yet. Run it: <code className="text-accent-soft">cd agent && npm start</code>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {feed.map((f) => (
+                  <a
+                    key={f.txHash + f.at}
+                    href={txUrl(f.txHash)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block border border-white/5 rounded-lg p-2 hover:border-white/15"
+                  >
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="flex items-center gap-1 font-bold">
+                        <Bot size={11} className="text-accent-soft" />
+                        {f.label ?? short(f.actor)}
+                        <span className={f.side === "UP" ? "text-up" : "text-down"}>· {f.side}</span>
+                      </span>
+                      <span className="text-bn-text-muted">{ago(f.at)}</span>
+                    </div>
+                    <div className="text-[11px] text-bn-text-dim mt-1 leading-snug">{f.rationale}</div>
+                  </a>
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+};
