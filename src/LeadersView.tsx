@@ -82,6 +82,36 @@ export const LeadersView: React.FC = () => {
           <StatTile label="windows" value={stats ? String(stats.windows) : "—"} />
         </div>
 
+        {leaders?.some((l) => l.isAgent) ? (
+          <section className="tf-card p-3 sm:p-4" style={{ borderColor: "rgba(138,166,249,0.35)" }}>
+            <div className="flex items-center gap-2 mb-2">
+              <Bot size={15} className="text-accent-soft" />
+              <h2 className="font-bold text-sm">Agent leaders</h2>
+              <span className="text-[10px] text-bn-text-muted">strategies you can follow like any human</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {leaders
+                .filter((l) => l.isAgent)
+                .map((l) => (
+                  <div key={l.address} className="flex items-center gap-3 rounded-lg px-3 py-2 text-xs" style={{ background: "rgba(8,71,247,0.10)", border: "1px solid rgba(138,166,249,0.3)" }}>
+                    <Link to={`/leader/${l.address}`} className="font-bold text-accent-soft hover:underline">
+                      {l.label ?? short(l.address)}
+                    </Link>
+                    <span className="font-mono text-bn-text-dim">{l.taps} taps</span>
+                    <span className="font-mono text-bn-text-dim">{l.wins}W · {l.losses}L</span>
+                    <span className="font-mono text-accent-soft">⚡{l.copies ?? 0} copies</span>
+                    <FollowerCell address={l.address} offchain={l.followers} />
+                    {!(address && l.address.toLowerCase() === address.toLowerCase()) ? (
+                      <button onClick={() => onFollow(l)} disabled={followMut.isPending} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-accent text-white font-bold disabled:opacity-50">
+                        <UserPlus size={11} /> follow
+                      </button>
+                    ) : null}
+                  </div>
+                ))}
+            </div>
+          </section>
+        ) : null}
+
         <div className="grid lg:grid-cols-[1fr_320px] gap-4">
           {/* leaderboard */}
           <section className="tf-card p-3 sm:p-4">

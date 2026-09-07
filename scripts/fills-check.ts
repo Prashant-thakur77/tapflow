@@ -4,7 +4,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { getClient } from "../src/lib/ec";
 const me = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`).address;
 const c = getClient();
-const POOL = "0x06B0C35e61c7cEF10689B48500fC374867e33df4"; const MARKET = "0x0000000000000000000000000000000000000000000000000000000000015779";
+const POOL = "0x06B0C35e61c7cEF10689B48500fC374867e33df4"; // ETH 24h pool (market …15779)
 const pool = await c.getFills(POOL, { since: 1788700000, until: Math.floor(Date.now()/1000), limit: 200, offset: 0 });
 const ours = pool.filter((f) => [f.taker, f.takerOrder?.owner, f.maker].some((a) => a?.toLowerCase() === me.toLowerCase()));
 console.log(`getFills(pool) 200 newest: ${pool.length} rows, ours: ${ours.length}; markets in page: ${[...new Set(pool.map((f) => String(f.market).slice(-6)))].join(",")}`);
