@@ -1,10 +1,11 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Zap, Users, KeyRound, Bot, ArrowRight } from "lucide-react";
+import { Zap, Users, KeyRound, Bot, ArrowRight, ShieldCheck, LayoutGrid } from "lucide-react";
 import { useCountdown, useCurrentWindow, useLiveWindows, useNow, useSpot } from "./tap/hooks";
 import { WindowRing } from "./tap/WindowRing";
 import { fmtCadence, fmtCountdown } from "./lib/ec";
+import { useProof, useStats } from "./tap/useLeaderboard";
 
 const FEATURES = [
   { Icon: Zap, tag: "01", color: "#0847F7", title: "One tap. Real order.", body: "Every window is a DreamDEX Event Contract. Your stake becomes an IOC order on a live on-chain book. No mock, no house." },
@@ -16,9 +17,14 @@ const FEATURES = [
 export const IntroView: React.FC = () => {
   const { data: windows = [] } = useLiveWindows();
   const btc = useSpot("BTC");
-  const { window: w } = useCurrentWindow("BTC", 300);
+  const { window: w5 } = useCurrentWindow("BTC", 300);
+  // No 5m window live? Show the soonest-closing real window of any cadence instead of a spinner.
+  const w = w5 ?? [...windows].sort((a, b) => a.expiry - b.expiry)[0];
   const { left, pct } = useCountdown(w);
   const now = useNow(1000);
+  const { data: proof } = useProof();
+  const { data: stats } = useStats();
+  const samePct = proof && proof.mirrors ? Math.round((proof.sameBlock / proof.mirrors) * 100) : null;
   const strip = windows.map((x) => `${x.asset} ${fmtCadence(x.intervalSec)} · closes in ${fmtCountdown(x.expiry - now / 1000)}`);
 
   return (
@@ -73,7 +79,7 @@ export const IntroView: React.FC = () => {
             <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(70% 60% at 50% 0%, rgba(8,71,247,0.25), transparent 70%)" }} />
             <div className="relative">
               <div className="text-[10px] uppercase tracking-[0.3em] text-bn-text-muted text-center mb-4">live right now</div>
-              <WindowRing left={left} pct={pct} size={200} label={w ? `BTC · ${fmtCadence(w.intervalSec)}` : "loading"} sub={w ? "this is a real window" : undefined} />
+              <WindowRing left={left} pct={pct} size={200} label={w ? `${w.asset} · ${fmtCadence(w.intervalSec)}` : "loading"} sub={w ? "this is a real window" : undefined} />
               <Link to="/tap" className="mt-6 grid grid-cols-2 gap-3">
                 <div className="rounded-xl py-3 text-center font-display font-bold text-up" style={{ background: "rgba(46,189,133,0.12)", border: "1px solid rgba(46,189,133,0.35)" }}>
                   UP
@@ -98,6 +104,46 @@ export const IntroView: React.FC = () => {
             </div>
           </div>
         ) : null}
+
+        {/* the differentiator, with live numbers from the indexer */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="mt-10 tf-card p-5 sm:p-6 relative overflow-hidden" style={{ borderColor: "rgba(46,189,133,0.35)" }}>
+          <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(60% 80% at 0% 50%, rgba(46,189,133,0.12), transparent 70%)" }} />
+          <div className="relative grid lg:grid-cols-[1.1fr_1fr] gap-6 items-center">
+            <div>
+              <div className="label-tag inline-block mb-3" style={{ borderColor: "rgba(46,189,133,0.5)", color: "#2ebd85" }}>PROVEN ON SHANNON</div>
+              <h2 className="font-display font-bold text-2xl sm:text-3xl tracking-tight leading-tight">
+                Copy-trades that land in the <span className="text-up">same block</span> as the leader.
+              </h2>
+              <p className="mt-3 text-sm text-bn-text-dim max-w-lg leading-relaxed">
+                A leader's tap emits an event. Somnia's reactivity precompile invokes our CopyHandler inside that block, and MirrorVault places every follower's order right behind it. No bot, no keeper, no race.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-3">
+                <Link to="/proof" className="btn-outline px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2">
+                  <ShieldCheck size={14} /> See every mirror on-chain
+                </Link>
+                <Link to="/markets" className="btn-outline px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2">
+                  <LayoutGrid size={14} /> All live windows
+                </Link>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {[
+                { label: "same block", value: samePct !== null ? `${samePct}%` : "—", hint: proof ? `${proof.sameBlock} of ${proof.mirrors} mirrors` : "indexer offline", up: true },
+                { label: "reactive mirrors", value: proof ? String(proof.mirrors) : "—", hint: proof ? `${proof.successful} filled` : "" },
+                { label: "broadcasts", value: proof ? String(proof.broadcasts) : "—", hint: proof ? `${proof.leaders} leaders` : "" },
+                { label: "wallets", value: stats ? String(stats.wallets) : "—", hint: "on the venue" },
+                { label: "taps indexed", value: stats ? String(stats.taps) : "—", hint: "from pool logs" },
+                { label: "volume", value: stats ? `${Math.round(stats.volumeUsdc).toLocaleString()}` : "—", hint: "tUSDC" },
+              ].map((t) => (
+                <div key={t.label} className="rounded-xl p-3 bg-white/[0.03] border border-white/5">
+                  <div className="text-[9px] uppercase tracking-[0.2em] text-bn-text-muted">{t.label}</div>
+                  <div className={`font-mono font-extrabold text-xl tabular mt-0.5 ${t.up ? "text-up" : ""}`}>{t.value}</div>
+                  <div className="text-[10px] text-bn-text-muted mt-0.5">{t.hint}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </motion.div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-10">
           {FEATURES.map(({ Icon, tag, color, title, body }, i) => (

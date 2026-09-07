@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { follow, getFeed, getLeaderboard, getMarketPositions, getRecent, getSettled, getStats } from "../lib/api";
+import { follow, getFeed, getLeaderboard, getMarketPositions, getProof, getRecent, getSettled, getStats } from "../lib/api";
 
 /** Latest fills across the venue — the live ticker. */
 export function useRecentFills(limit = 30) {
@@ -34,4 +34,8 @@ export function useFollow() {
     mutationFn: ({ follower, leader }: { follower: string; leader: string }) => follow(follower, leader),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["tf-leaderboard"] }),
   });
+}
+
+export function useProof() {
+  return useQuery({ queryKey: ["tf-proof"], queryFn: getProof, refetchInterval: 15_000, retry: 1 });
 }

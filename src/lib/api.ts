@@ -80,7 +80,18 @@ async function get<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export interface ProofSummary {
+  broadcasts: number;
+  mirrors: number;
+  successful: number;
+  sameBlock: number;
+  followers: number;
+  leaders: number;
+  cursor: number;
+}
+
 export const getStats = () => get<Stats>("/api/stats");
+export const getProof = () => get<ProofSummary & { latest: unknown[] }>("/api/proof");
 export const getLeaderboard = (limit = 50) => get<Leader[]>(`/api/leaderboard?limit=${limit}`);
 export const getFeed = (limit = 30) => get<FeedItem[]>(`/api/feed?limit=${limit}`);
 export const getLeader = (address: string) => get<Leader & { recent: unknown[] }>(`/api/leader/${address}`);
