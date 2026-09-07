@@ -13,7 +13,7 @@ TapFlow turns every live DreamDEX Event Contract into a one-tap UP/DOWN game, le
 </p>
 
 - **Live app:** https://tapflow-phi.vercel.app · **Proof page (live, from chain):** https://tapflow-phi.vercel.app/proof · **Markets grid:** https://tapflow-phi.vercel.app/markets
-- **Same-block mirror, on the explorer:** [block 482312219](https://shannon-explorer.somnia.network/block/482312219) (UP) and [block 482322170](https://shannon-explorer.somnia.network/block/482322170) (DOWN) — leader broadcast and follower's reactive order, one block. The indexer has paired **7 of 7** mirrors with their broadcast in the same block, including four placed autonomously by TapBot.
+- **Same-block mirror, on the explorer:** [block 482312219](https://shannon-explorer.somnia.network/block/482312219) (UP) and [block 482322170](https://shannon-explorer.somnia.network/block/482322170) (DOWN) — leader broadcast and follower's reactive order, one block. The indexer has paired **8 of 8** mirrors with their broadcast in the same block, including five placed autonomously by TapBot.
 - **Code:** https://github.com/Prashant-thakur77/tapflow · **Demo video:** [`docs/media/tapflow-demo-silent.mp4`](docs/media/tapflow-demo-silent.mp4) (silent walkthrough; narrated cut linked on DoraHacks) · **Telegram bot:** source in [`tg-bot/`](tg-bot/), runs with your own `BOT_TOKEN`
 - Every number in the app is read live from Somnia Shannon. Nothing in the demo path is mocked.
 
@@ -37,7 +37,7 @@ Prediction markets are solo and clunky: connect, approve, read an order book, si
 | **F6** | Telegram bot + mini-app | ✅ built | `tsc` clean, live `/window` odds path verified |
 | **F7** | README + SDK feedback | ✅ this file + `SDK-FEEDBACK.md` | 18 measured items |
 | **+** | Markets grid, live venue ticker, settled strip, pro drawer | ✅ live | [/markets](https://tapflow-phi.vercel.app/markets) — every window as a card with odds, countdown and payout-on-chip quick taps |
-| **+** | Proof page + leader profiles + agent strip | ✅ live | [/proof](https://tapflow-phi.vercel.app/proof) — the indexer pairs every reactive mirror with its broadcast (7/7 same block); `/leader/:address` |
+| **+** | Proof page + leader profiles + agent strip | ✅ live | [/proof](https://tapflow-phi.vercel.app/proof) — the indexer pairs every reactive mirror with its broadcast (8/8 same block); `/leader/:address` |
 | **+** | Chain-indexed fills | ✅ live | the upstream tape lagged 100 min and missed wallets, so fills are read from pool logs (`OrderPlaced` + `OrderFilled`) |
 | **+** | Windows discovered from chain | ✅ live | the indexer scans `MarketCreated` on the market module and verifies each window with `getMarketOnchain`; the app and TapBot fall back to `/api/windows` after a 9 s upstream timeout, so an indexer outage never blanks the tap screen |
 | **+** | Follower lifecycle in the UI | ✅ live | Portfolio shows the copy vault (available, leader, loss cap used) with **Withdraw** and **Stop following**; a toast fires the moment a mirror lands for you; **Claim all** sweeps every settled window in one tx (`redeemMany`) |
@@ -117,11 +117,11 @@ flowchart LR
 
 ## Live stats
 
-Served by the indexer (`GET /api/stats`, `/api/leaderboard`), read from chain with no key. Observed on 3 Sep 2026:
+Served by the indexer (`GET /api/stats`, `/api/leaderboard`, `/api/windows`, `/api/proof`), read from chain with no key. Observed on 8 Sep 2026:
 
-| wallets | taps indexed | volume (tUSDC) | windows |
-|---|---|---|---|
-| 47 | 177 | 3,647 | 42 |
+| wallets | taps indexed | volume (tUSDC) | windows | reactive mirrors | same block |
+|---|---|---|---|---|---|
+| 89 | 466 | 8,199 | 58 | 8 | 8 of 8 |
 
 ## Architecture
 
