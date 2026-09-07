@@ -28,15 +28,18 @@ Prediction markets are solo and clunky: connect, approve, read an order book, si
 | # | Feature | State | Proof |
 |---|---|---|---|
 | **F1** | Tap screen on real Event Contracts | ✅ live | places IOC orders, live book/odds/spot, crowd-odds chart (1m candles), top positions on the window, claims, on-chain fills history |
-| **F2** | One-tap session keys | ✅ live | capped auto-sweeping session wallet: one funding popup, then zero prompts |
+| **F2** | One-tap session keys | ✅ live | capped auto-sweeping session wallet: fund it once (two quick signatures), then every tap and claim signs itself — zero prompts. Keyboard: ↑ UP, ↓ DOWN, 1-3 stake |
 | **F3** | Copy-trading contracts (reactivity) | ✅ **deployed + proven on Shannon** | same-block mirror in [block 482312219](https://shannon-explorer.somnia.network/block/482312219); subscription `16760441`; `forge test` 10/10 |
 | **F4** | Fills indexer + leaderboard API | ✅ live | 47 wallets / 177 taps / 3.6k tUSDC indexed from chain |
-| **F5** | TapBot momentum agent | ✅ built, configured with the leader key | live signal + window-odds read verified; broadcasts through the deployed Router |
+| **F5** | TapBot momentum agent | ✅ **live as a public leader** | 7 real taps, 5 on-chain copies. v2 runs a risk gate with reason codes (max 90¢/share, edge over the book's spread, one tap per window, cooldown, near-expiry stop), trades the shortest live cadence, auto-claims winnings each loop, and publishes its holds to the feed so followers see *why* it waited |
 | **F6** | Telegram bot + mini-app | ✅ built | `tsc` clean, live `/window` odds path verified |
 | **F7** | README + SDK feedback | ✅ this file + `SDK-FEEDBACK.md` | 17 measured items |
 | **+** | Markets grid, live venue ticker, settled strip, pro drawer | ✅ live | [/markets](https://tapflow-phi.vercel.app/markets) — every window as a card with odds, countdown and payout-on-chip quick taps |
 | **+** | Proof page + leader profiles + agent strip | ✅ live | [/proof](https://tapflow-phi.vercel.app/proof) — the indexer pairs every reactive mirror with its broadcast (6/6 same block); `/leader/:address` |
 | **+** | Chain-indexed fills | ✅ live | the upstream tape lagged 100 min and missed wallets, so fills are read from pool logs (`OrderPlaced` + `OrderFilled`) |
+| **+** | Follower lifecycle in the UI | ✅ live | Portfolio shows the copy vault (available, leader, loss cap used) with **Withdraw** and **Stop following**; a toast fires the moment a mirror lands for you; **Claim all** sweeps every settled window in one tx (`redeemMany`) |
+| **+** | Embeddable tap card | ✅ live | [/embed/BTC/4h](https://tapflow-phi.vercel.app/embed/BTC/4h) — any Somnia dapp drops one live window into an iframe (copy the snippet from any Markets card); same real orders |
+| **+** | `npm run doctor` | ✅ | one read-only screen: wallets, vault, handler gas tank, subscriptions, live books on the venue grid, indexer, site |
 
 Everything above runs against real Shannon transactions from wallet `0x6798…F228` (leader) and `0x1AD9…2015` (follower). Only the RiskGuard subscription is still pending: it needs another 32 STT, which is one more faucet claim away.
 
@@ -159,6 +162,9 @@ cd tg-bot && npm install && npm start
 # one real tap from the CLI (needs a funded key in .env)
 npx tsx scripts/tap.ts faucet
 npx tsx scripts/tap.ts BTC 5m UP 1
+
+# preflight before a demo (read-only)
+npm run doctor
 ```
 
 ## Status: honest scope

@@ -63,3 +63,13 @@ Studied with headless Chromium: DreamDEX's own `/event-contracts` page, Polymark
 - **Crowd odds over the window** (Limitless): 1-minute candles of the YES price, bounded to the window's trading span (pools are recycled), with the live quote as the last point and a 50% coin-flip line.
 - **Top positions on this window** (Limitless): who holds what, from chain-indexed fills, with an UP/DOWN share bar.
 - **Proof page + landing proof strip** (ours): the indexer pairs every reactive mirror with its broadcast and reports the same-block rate live.
+
+## Second pass (8 Sep, later)
+
+- **Claim all** banner on the tap screen: winnings from every settled window in one `redeemMany`, no popup on a session key (bot-kit's claim sweep, reimplemented for the browser).
+- **Keyboard taps**: ↑/U and ↓/D tap, 1-3 pick the stake; a hint sits under the buttons on desktop.
+- **Copy vault card** in Portfolio: the follower's deposit, who they mirror, loss cap used, **Withdraw** and **Stop following**. The way out is as visible as the way in.
+- **Mirror alerts**: the app polls the indexer and toasts the moment a mirror lands for the connected wallet, with the block number.
+- **Same-block diagram**: one animated line from the leader's tap to the follower's fill, inside a "one block" bracket, on the landing and proof pages.
+- **Embed**: `/embed/:asset/:cadence` renders one live card for iframes; every Markets card has a copy-snippet button.
+- **TapBot holds are public**: the feed shows dashed "holding · price too high / spread eats edge / cooldown" entries between taps.
