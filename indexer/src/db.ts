@@ -301,7 +301,11 @@ let copiesFn: () => Map<string, number> = () => new Map();
 export const setCopiesSource = (fn: () => Map<string, number>) => { copiesFn = fn; };
 
 export function leaderboard(limit = 50): Leader[] {
-  return aggregate(stmts.taps.all() as TapAgg[], followerMap(), copiesFn()).slice(0, limit);
+  const all = aggregate(stmts.taps.all() as TapAgg[], followerMap(), copiesFn());
+  const top = all.slice(0, limit);
+  // Agents are pinned: a strategy you can follow stays visible even on a losing day.
+  for (const l of all.slice(limit)) if (l.isAgent && !top.some((t) => t.address === l.address)) top.push(l);
+  return top;
 }
 
 export function leader(address: string): (Leader & { recent: TapRow[] }) | null {
