@@ -127,3 +127,51 @@ and the faucet should hand out enough on request.
 - Building a `deployments.json` string with `string.concat` + several
   `vm.toString` in a deploy script hits "stack too deep" without `via_ir`. Ship
   the reactivity examples with `via_ir = true` so newcomers don't chase it.
+
+## 15. The venue's lot size changed to 1000 — and it's only discoverable on-chain
+
+The bot kit's `ec-core/config.ts` says testnet "accepted orders down to 1 raw
+unit, i.e. no lot constraint" (measured July). On 7 Sep every live pool reports
+`getOrderBookParameters() = (tick 1000, minQuantity 1000, lot 1000)`, and any
+off-grid quantity reverts with `InvalidQuantity(qty, 1000)` — a custom error the
+SDK does not decode, so it surfaces as "Execution reverted for an unknown
+reason". Two asks: (a) decode the pool's custom errors in the SDK's revert path;
+(b) have `quoteBinaryStakeOverBook` default to the pool's live
+`getBinaryBookParams` rather than caller-supplied constants, or at least have the
+docs say "read it, don't hardcode it". Binary market rows still carry no
+`tickSize`/`lotSize`, so there is nothing to read from the indexer either.
+
+## 16. `forge script` cannot deploy a reactive handler on Somnia (two separate reasons)
+
+1. Any script that calls `SomniaExtensions.subscribe` fails in Foundry's local
+   run with "call to non-contract address 0x…0100": the precompile has no
+   bytecode, so Solidity's high-level call reverts on the code-size check
+   before a single tx is broadcast. `--skip-simulation` does not help because
+   the script itself must execute locally to produce the transactions.
+2. Even deploy-only scripts fail: Foundry sizes `CREATE` gas from its local
+   EVM and Somnia prices creation ~10× higher (Router used **1,951,982** gas
+   against ~200k locally). At the default 130% multiplier and at 400% every
+   deployment ran out of gas with status 0.
+
+What worked: `forge create --gas-limit 20000000` per contract, then `cast send`
+for wiring/funding/`subscribe` **without** `--gas-limit` so the node's
+`eth_estimateGas` sizes it. The reactivity docs should show exactly this, and
+ideally ship a `vm.etch` shim for `0x0100` so scripts can at least simulate.
+
+## 17. Somnia's state-creation gas will surprise every hackathon team
+
+Measured on Shannon (all status 1, gas used):
+
+| Action | Gas used | Why it's big |
+|---|---|---|
+| Plain STT transfer to a never-funded address | 421,000 | account creation |
+| tUSDC `transfer` to a first-time holder | 262,180 | fresh balance slot |
+| `approve` (fresh allowance slot) | 259,745 | fresh slot |
+| `MirrorVault.setWiring` (2 fresh slots) | 451,587 | 2 fresh slots |
+| `MirrorVault.setFollow` (struct + mapping + array push) | 1,281,223 | ~6 fresh slots |
+| `SomniaExtensions.subscribe` | 459,154 | precompile + storage |
+
+A 21k-pinned transfer or a 300k "safe" limit silently burns the whole limit
+with status 0. The docs mention this once under gas differences; it deserves a
+box at the top of every quickstart, plus a note that `eth_estimateGas` on the
+node pads 2–5× and should be trusted over any client-side estimate.

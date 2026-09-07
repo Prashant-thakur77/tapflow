@@ -61,11 +61,47 @@ It prints the subscription ids and writes `deployments.json` (addresses + ids),
 which the web app and indexer read. Put `router` into the agent's `ROUTER_ADDRESS`
 and the app's `VITE_ROUTER_ADDRESS` to light up the in-block mirror.
 
-## Status
+## Deployed on Shannon (7 Sep 2026)
 
-Compiles (solc 0.8.30, Cancun, via-IR), unit-tested against mocks. Not yet
-deployed to Shannon — that step needs a funded key and ≥ 64 STT for the two
-subscriptions. See `SDK-FEEDBACK.md` for the reactivity notes.
+| Contract | Address |
+|---|---|
+| Router | `0x512009743f48A924F679907ca9E206b706d499Cc` |
+| MirrorVault | `0xF5fc089748604722ADa350599a8afBAFb0A6aB0A` |
+| CopyHandler | `0x63Ed0a4242FD11A9A9296F8D8bDCd39D2E90c9c1` — subscription **16760441**, funded 33 STT |
+| RiskGuard | `0xF6f6Bf736b19C7317573f282E7aE3387cb346588` — wired; subscription pending 32 STT |
+
+Same-block mirror proof: block [482312219](https://shannon-explorer.somnia.network/block/482312219).
+
+## What actually works on Somnia (read this before deploying)
+
+`forge script … --broadcast` fails twice over here. First, the script's local run
+calls `SomniaExtensions.subscribe`, which does a high-level call to `0x0100`; the
+precompile has no bytecode in Foundry's EVM, so Solidity's code-size check
+reverts before anything is sent. Second, even deploy-only, Foundry sizes gas
+from its local EVM and Somnia prices contract creation about **10×** higher
+(Router: 1.95M gas used vs ~0.2M estimated), so every `CREATE` ran out of gas
+at the default multiplier and at 4×.
+
+The sequence that works:
+
+```bash
+set -a; source ../.env; set +a
+forge create src/Router.sol:Router          --rpc-url shannon --private-key $PRIVATE_KEY --broadcast --gas-limit 20000000
+forge create src/MirrorVault.sol:MirrorVault --rpc-url shannon --private-key $PRIVATE_KEY --broadcast --gas-limit 20000000 --constructor-args 0x70a86D8842FB63C4Ad2b7cdddF530eBf1BB25d8E
+forge create src/CopyHandler.sol:CopyHandler --rpc-url shannon --private-key $PRIVATE_KEY --broadcast --gas-limit 20000000 --constructor-args <vault> <router>
+forge create src/RiskGuard.sol:RiskGuard     --rpc-url shannon --private-key $PRIVATE_KEY --broadcast --gas-limit 20000000 --constructor-args <vault>
+# wiring, funding and subscribe: let the node estimate gas (it knows Somnia's pricing)
+cast send <vault> "setWiring(address,address)" <copyHandler> <riskGuard> --rpc-url shannon --private-key $PRIVATE_KEY
+cast send <copyHandler> --value 33ether --rpc-url shannon --private-key $PRIVATE_KEY
+cast send <copyHandler> "subscribe(uint64)" 0 --rpc-url shannon --private-key $PRIVATE_KEY
+cast call <copyHandler> "subscriptionId()(uint256)" --rpc-url shannon
+```
+
+Never pass a hand-picked `--gas-limit` to `cast send` on Somnia: `setWiring` needed
+451k, a fresh-address STT transfer 421k, `setFollow` 1.28M. The node's
+`eth_estimateGas` pads correctly (2–5× over what is finally used).
+
+Unit tests: `forge test -vv` → 10/10 against a mock pool + mock precompile.
 
 Credits: `@somnia-chain/reactivity-contracts` (MIT, Somnia Foundation); binary
 pool ABI from the DreamDEX EC template.
