@@ -13,7 +13,7 @@ TapFlow turns every live DreamDEX Event Contract into a one-tap UP/DOWN game, le
 </p>
 
 - **Live app:** https://tapflow-phi.vercel.app · **Proof page (live, from chain):** https://tapflow-phi.vercel.app/proof · **Markets grid:** https://tapflow-phi.vercel.app/markets
-- **Same-block mirror, on the explorer:** [block 482312219](https://shannon-explorer.somnia.network/block/482312219) (UP) and [block 482322170](https://shannon-explorer.somnia.network/block/482322170) (DOWN) — leader broadcast and follower's reactive order, one block. The indexer has paired **6 of 6** mirrors with their broadcast in the same block, including three placed autonomously by TapBot.
+- **Same-block mirror, on the explorer:** [block 482312219](https://shannon-explorer.somnia.network/block/482312219) (UP) and [block 482322170](https://shannon-explorer.somnia.network/block/482322170) (DOWN) — leader broadcast and follower's reactive order, one block. The indexer has paired **7 of 7** mirrors with their broadcast in the same block, including four placed autonomously by TapBot.
 - **Code:** https://github.com/Prashant-thakur77/tapflow · **Demo video:** [`docs/media/tapflow-demo-silent.mp4`](docs/media/tapflow-demo-silent.mp4) (silent walkthrough; narrated cut linked on DoraHacks) · **Telegram bot:** source in [`tg-bot/`](tg-bot/), runs with your own `BOT_TOKEN`
 - Every number in the app is read live from Somnia Shannon. Nothing in the demo path is mocked.
 
@@ -33,11 +33,11 @@ Prediction markets are solo and clunky: connect, approve, read an order book, si
 | **F2** | One-tap session keys | ✅ live | capped auto-sweeping session wallet: fund it once (two quick signatures), then every tap and claim signs itself — zero prompts. Keyboard: ↑ UP, ↓ DOWN, 1-3 stake |
 | **F3** | Copy-trading contracts (reactivity) | ✅ **deployed + proven on Shannon** | same-block mirror in [block 482312219](https://shannon-explorer.somnia.network/block/482312219); subscription `16760441`; `forge test` 10/10 |
 | **F4** | Fills indexer + leaderboard API | ✅ live | 47 wallets / 177 taps / 3.6k tUSDC indexed from chain |
-| **F5** | TapBot momentum agent | ✅ **live as a public leader** | 7 real taps, 5 on-chain copies. v2 runs a risk gate with reason codes (max 90¢/share, edge over the book's spread, one tap per window, cooldown, near-expiry stop), trades the shortest live cadence, auto-claims winnings each loop, and publishes its holds to the feed so followers see *why* it waited |
+| **F5** | TapBot momentum agent | ✅ **live as a public leader** | 8 real taps, 6 on-chain copies. v2 runs a risk gate with reason codes (max 90¢/share, edge over the book's spread, one tap per window, cooldown, near-expiry stop), trades the shortest live cadence, auto-claims winnings each loop, and publishes its holds to the feed so followers see *why* it waited |
 | **F6** | Telegram bot + mini-app | ✅ built | `tsc` clean, live `/window` odds path verified |
 | **F7** | README + SDK feedback | ✅ this file + `SDK-FEEDBACK.md` | 18 measured items |
 | **+** | Markets grid, live venue ticker, settled strip, pro drawer | ✅ live | [/markets](https://tapflow-phi.vercel.app/markets) — every window as a card with odds, countdown and payout-on-chip quick taps |
-| **+** | Proof page + leader profiles + agent strip | ✅ live | [/proof](https://tapflow-phi.vercel.app/proof) — the indexer pairs every reactive mirror with its broadcast (6/6 same block); `/leader/:address` |
+| **+** | Proof page + leader profiles + agent strip | ✅ live | [/proof](https://tapflow-phi.vercel.app/proof) — the indexer pairs every reactive mirror with its broadcast (7/7 same block); `/leader/:address` |
 | **+** | Chain-indexed fills | ✅ live | the upstream tape lagged 100 min and missed wallets, so fills are read from pool logs (`OrderPlaced` + `OrderFilled`) |
 | **+** | Windows discovered from chain | ✅ live | the indexer scans `MarketCreated` on the market module and verifies each window with `getMarketOnchain`; the app and TapBot fall back to `/api/windows` after a 9 s upstream timeout, so an indexer outage never blanks the tap screen |
 | **+** | Follower lifecycle in the UI | ✅ live | Portfolio shows the copy vault (available, leader, loss cap used) with **Withdraw** and **Stop following**; a toast fires the moment a mirror lands for you; **Claim all** sweeps every settled window in one tx (`redeemMany`) |
