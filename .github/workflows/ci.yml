@@ -42,5 +42,7 @@ jobs:
         with: { node-version: 20 }
       - run: npm ci
         working-directory: contracts
+      - run: git clone --depth 1 https://github.com/foundry-rs/forge-std lib/forge-std
+        working-directory: contracts
       - run: forge test -vv
         working-directory: contracts

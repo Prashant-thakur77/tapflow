@@ -35,6 +35,7 @@ sequenceDiagram
 ```bash
 cd contracts
 npm install                      # @somnia-chain/reactivity-contracts
+forge install foundry-rs/forge-std   # lib/ is not committed
 forge test -vv                   # 10 tests, all green (mock pool + mock precompile)
 ```
 
