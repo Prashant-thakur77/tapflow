@@ -87,6 +87,16 @@ contract CopyFlowTest is Test {
         assertEq(usdc.balanceOf(address(pool)), 9 * ONE, "pool pulled 9 total");
     }
 
+    function test_mirror_down_escrows_one_minus_price() public {
+        // Leader goes DOWN 10 @ YES 0.10 (i.e. NO at 0.90). Alice 1x → cost 9, Bob 0.5x → 4.5.
+        _firePositionOpened(1, 10 * ONE, 100_000, uint64(block.timestamp + 300) * 1e9);
+        (,,,, uint256 aliceSpent,) = vault.follows(alice);
+        (,,,, uint256 bobSpent,) = vault.follows(bob);
+        assertEq(aliceSpent, 9 * ONE, "DOWN escrow is (1-price)*qty");
+        assertEq(bobSpent, 45 * ONE / 10, "bob half size");
+        assertEq(usdc.balanceOf(address(pool)), 135 * ONE / 10, "pool pulled 13.5 total");
+    }
+
     function test_only_precompile_can_trigger() public {
         bytes32[] memory topics = new bytes32[](3);
         topics[0] = router.POSITION_OPENED_TOPIC();

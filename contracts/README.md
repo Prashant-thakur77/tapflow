@@ -66,9 +66,13 @@ and the app's `VITE_ROUTER_ADDRESS` to light up the in-block mirror.
 | Contract | Address |
 |---|---|
 | Router | `0x512009743f48A924F679907ca9E206b706d499Cc` |
-| MirrorVault | `0xF5fc089748604722ADa350599a8afBAFb0A6aB0A` |
-| CopyHandler | `0x63Ed0a4242FD11A9A9296F8D8bDCd39D2E90c9c1` — subscription **16760441**, funded 33 STT |
-| RiskGuard | `0xF6f6Bf736b19C7317573f282E7aE3387cb346588` — wired; subscription pending 32 STT |
+| MirrorVault v2 | `0x4d5F238420452D360D98AF0fA08A33048964a5A5` |
+| CopyHandler v2 | `0x2Fff45dFE73aE60f4Fd24fE25B7C93482DBeF43d` — subscription **16764091**, funded 33 STT |
+| RiskGuard v2 | `0x8E6Fe05FF5bA01bC5f76e3169Ef9b65B9B0e67D4` — wired; subscription pending 32 STT |
+
+v1 (`MirrorVault 0xF5fc…`, `CopyHandler 0x63Ed…`, sub 16760441) is retired: it escrowed
+`price × qty` for DOWN mirrors instead of `(1 − price) × qty`. Fixed in
+`MirrorVault.mirror`, covered by `test_mirror_down_escrows_one_minus_price`.
 
 Same-block mirror proof: block [482312219](https://shannon-explorer.somnia.network/block/482312219).
 

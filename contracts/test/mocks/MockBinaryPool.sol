@@ -48,7 +48,9 @@ contract MockBinaryPool {
             failNext = false;
             return (false, 0);
         }
-        uint256 cost = (price * quantity) / ONE;
+        // kind 0 = BUY_YES escrows price × qty; kind 2 = BUY_NO escrows (1 − price) × qty.
+        uint256 unit = kind == 2 ? ONE - price : price;
+        uint256 cost = (unit * quantity) / ONE;
         require(collateral.transferFrom(msg.sender, address(this), cost), "pull");
         orders.push(Order(msg.sender, kind, price, quantity, cost));
         return (true, nextId++);

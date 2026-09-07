@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useAccount, useChainId, useConnect, useSwitchChain } from "wagmi";
 import toast from "react-hot-toast";
 import confetti from "canvas-confetti";
@@ -86,6 +86,13 @@ export const TapView: React.FC = () => {
   };
 
   const available = cadences(windows, asset);
+  // The short series only run during main trading hours. If the chosen cadence
+  // has no live window but others do, fall back to the shortest one that does.
+  const availableKey = available.join(",");
+  useEffect(() => {
+    if (available.length && !available.includes(intervalSec)) setIntervalSec(available[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availableKey, intervalSec]);
   const spotPx = spot?.price ?? null;
   // The opening answer is an integer in the oracle's own scale (2 dp today).
   // Pick the scale that lands nearest the live spot so a feed change can't

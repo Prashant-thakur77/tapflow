@@ -89,9 +89,11 @@ flowchart LR
   | Contract | Address |
   |---|---|
   | Router | [`0x512009743f48A924F679907ca9E206b706d499Cc`](https://shannon-explorer.somnia.network/address/0x512009743f48A924F679907ca9E206b706d499Cc) |
-  | MirrorVault | [`0xF5fc089748604722ADa350599a8afBAFb0A6aB0A`](https://shannon-explorer.somnia.network/address/0xF5fc089748604722ADa350599a8afBAFb0A6aB0A) |
-  | CopyHandler | [`0x63Ed0a4242FD11A9A9296F8D8bDCd39D2E90c9c1`](https://shannon-explorer.somnia.network/address/0x63Ed0a4242FD11A9A9296F8D8bDCd39D2E90c9c1) — subscription **16760441** on `Router.PositionOpened`, funded with 33 STT |
-  | RiskGuard | [`0xF6f6Bf736b19C7317573f282E7aE3387cb346588`](https://shannon-explorer.somnia.network/address/0xF6f6Bf736b19C7317573f282E7aE3387cb346588) — deployed + wired; subscription pending the next 32 STT faucet claim |
+  | MirrorVault (v2) | [`0x4d5F238420452D360D98AF0fA08A33048964a5A5`](https://shannon-explorer.somnia.network/address/0x4d5F238420452D360D98AF0fA08A33048964a5A5) |
+  | CopyHandler (v2) | [`0x2Fff45dFE73aE60f4Fd24fE25B7C93482DBeF43d`](https://shannon-explorer.somnia.network/address/0x2Fff45dFE73aE60f4Fd24fE25B7C93482DBeF43d) — subscription **16764091** on `Router.PositionOpened`, funded with 33 STT |
+  | RiskGuard (v2) | [`0x8E6Fe05FF5bA01bC5f76e3169Ef9b65B9B0e67D4`](https://shannon-explorer.somnia.network/address/0x8E6Fe05FF5bA01bC5f76e3169Ef9b65B9B0e67D4) — deployed + wired; subscription pending the next 32 STT faucet claim |
+
+  v1 (`MirrorVault 0xF5fc…aB0A`, `CopyHandler 0x63Ed…c9c1`, sub 16760441) produced the first same-block proof above but escrowed `price × qty` for DOWN mirrors instead of `(1 − price) × qty`, so DOWN copies reverted. Found when TapBot's first live DOWN broadcast didn't mirror; fixed, unit-tested (`test_mirror_down_escrows_one_minus_price`), redeployed as v2, old handler unsubscribed and its 33 STT recycled.
 
 - **Proof:** [block 482312219](https://shannon-explorer.somnia.network/block/482312219) holds the leader's broadcast and the follower's mirrored order. The mirror is a synthetic transaction from the precompile ([`0xa8c248…`](https://shannon-explorer.somnia.network/tx/0xa8c248f8b693206b0bfd24296b5a7012027df625a9f8d893bbb5ce41fe39c4eb)); no EOA sent it.
 - **Custody:** followers pre-fund `MirrorVault` and set their own ratio + max-loss; the vault can only place orders up to each follower's cap and never withdraw to anyone else.

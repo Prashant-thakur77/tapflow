@@ -138,7 +138,11 @@ contract MirrorVault {
 
         uint256 qty = (leaderQty * f.ratioBps) / 10_000;
         if (qty == 0) return 0;
-        uint256 cost = (price * qty) / ONE; // buy escrow, raw tUSDC
+        // `price` is always the YES price. A BUY_YES escrows price × qty; a
+        // BUY_NO (DOWN) escrows (1 − price) × qty. Under-approving a DOWN makes
+        // the pool's auto-pull revert, so the side matters here.
+        uint256 unitCost = side == 0 ? price : ONE - price;
+        uint256 cost = (unitCost * qty) / ONE; // buy escrow, raw tUSDC
 
         // Cap: never let cumulative spend pass the follower's max loss, and never
         // spend more than they deposited.
