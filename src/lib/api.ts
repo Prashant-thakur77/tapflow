@@ -42,6 +42,37 @@ export interface FeedItem {
   txHash: string;
 }
 
+export interface RecentFill {
+  at: number;
+  taker: string;
+  side: "UP" | "DOWN";
+  qty: number;
+  price: number;
+  cost: number;
+  txHash: string;
+  marketId: string;
+  asset: string;
+  intervalSec: number;
+}
+
+export interface SettledWindow {
+  marketId: string;
+  asset: string;
+  intervalSec: number;
+  tradingStart: number;
+  expiry: number;
+  expiryAt: number;
+  result: "UP" | "DOWN" | "VOID";
+  openPx: number | null;
+  closePx: number | null;
+}
+
+export interface MarketPositions {
+  marketId: string;
+  summary: { fills: number; traders: number; volumeUsdc: number; upQty: number; downQty: number };
+  positions: { taker: string; side: "UP" | "DOWN"; qty: number; cost: number; avgPrice: number; fills: number; lastAt: number; label?: string }[];
+}
+
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`);
   if (!res.ok) throw new Error(`${path} → ${res.status}`);
@@ -52,6 +83,9 @@ export const getStats = () => get<Stats>("/api/stats");
 export const getLeaderboard = (limit = 50) => get<Leader[]>(`/api/leaderboard?limit=${limit}`);
 export const getFeed = (limit = 30) => get<FeedItem[]>(`/api/feed?limit=${limit}`);
 export const getLeader = (address: string) => get<Leader & { recent: unknown[] }>(`/api/leader/${address}`);
+export const getRecent = (limit = 30) => get<RecentFill[]>(`/api/recent?limit=${limit}`);
+export const getSettled = (asset = "", intervalSec = 0, limit = 12) => get<SettledWindow[]>(`/api/settled?asset=${asset}&intervalSec=${intervalSec}&limit=${limit}`);
+export const getMarketPositions = (marketId: string) => get<MarketPositions>(`/api/market/${marketId}/positions`);
 
 export async function follow(followerAddr: string, leaderAddr: string): Promise<void> {
   const res = await fetch(`${BASE}/api/follow`, {

@@ -91,6 +91,17 @@ async function resolve(t: Target, row?: BinaryMarket): Promise<MarketResult | nu
   return null;
 }
 
+/** The oracle's opening and closing answers for a settled window (2-dp integers on the feed today). */
+async function oraclePrices(marketId: string): Promise<{ open: number | null; close: number | null }> {
+  try {
+    const r = await client.getMarketResolution(marketId as `0x${string}`);
+    const num = (v: unknown) => (v === null || v === undefined || v === "" ? null : Number(v) / 100);
+    return { open: num(r.openingAnswer?.numericValue), close: num(r.closingAnswer?.numericValue) };
+  } catch {
+    return { open: null, close: null };
+  }
+}
+
 let running = false;
 export let lastSync = { at: 0, live: 0, settled: 0, newFills: 0, error: "" };
 
@@ -121,7 +132,7 @@ export async function syncOnce(): Promise<void> {
       }
     });
 
-    // Results: settled markets without one yet.
+    // Results: settled markets without one yet (plus the oracle's open/close prices).
     let resolved = 0;
     await mapLimit(
       past.filter((m) => !getMarket(m.marketId)?.result),
@@ -129,7 +140,7 @@ export async function syncOnce(): Promise<void> {
       async (m) => {
         const r = await resolve(toTarget(m), m);
         if (r) {
-          applyResult(m.marketId, r);
+          applyResult(m.marketId, r, await oraclePrices(m.marketId));
           markFillsDone(m.marketId);
           resolved++;
         }

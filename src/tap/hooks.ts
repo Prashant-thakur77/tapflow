@@ -127,6 +127,8 @@ export function useTapQuotes(w: TapWindow | undefined, stake: number) {
     const grid = gridQ.data;
     return {
       hasBook: has,
+      book: has ? book! : null,
+      grid,
       source: liveHas ? ("live" as const) : polled.data ? ("poll" as const) : ("none" as const),
       watch: String(watch),
       up: has ? quoteFromBook(book!, "UP", stakeRaw, { grid }) : null,

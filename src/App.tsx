@@ -6,6 +6,7 @@ import { TapView } from "./tap/TapView";
 import { PortfolioView } from "./PortfolioView";
 import { HistoryView } from "./HistoryView";
 import { LeadersView } from "./LeadersView";
+import { MarketsView } from "./MarketsView";
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
         <Route element={<Layout />}>
           <Route path="/" element={<IntroView />} />
           <Route path="/tap" element={<TapView />} />
+          <Route path="/markets" element={<MarketsView />} />
           <Route path="/leaders" element={<LeadersView />} />
           <Route path="/portfolio" element={<PortfolioView />} />
           <Route path="/history" element={<HistoryView />} />

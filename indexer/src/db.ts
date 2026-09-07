@@ -94,13 +94,22 @@ CREATE TABLE IF NOT EXISTS feed (
 CREATE TABLE IF NOT EXISTS follows (follower TEXT PRIMARY KEY, leader TEXT NOT NULL, at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 `);
+// Opening / closing oracle prices for settled windows (added after v1; guarded for old DBs).
+for (const col of ["openPx REAL", "closePx REAL"]) {
+  const name = col.split(" ")[0];
+  const has = (db.prepare(`PRAGMA table_info(markets)`).all() as { name: string }[]).some((c) => c.name === name);
+  if (!has) db.exec(`ALTER TABLE markets ADD COLUMN ${col}`);
+}
 
 const stmts = {
   upsertMarket: db.prepare(`INSERT INTO markets (marketId,pool,asset,intervalSec,tradingStart,expiry,status,updatedAt)
     VALUES (@marketId,@pool,@asset,@intervalSec,@tradingStart,@expiry,@status,@updatedAt)
     ON CONFLICT(marketId) DO UPDATE SET pool=excluded.pool, status=excluded.status, expiry=excluded.expiry, updatedAt=excluded.updatedAt`),
   getMarket: db.prepare(`SELECT * FROM markets WHERE marketId = ?`),
-  setResult: db.prepare(`UPDATE markets SET result = ?, updatedAt = ? WHERE marketId = ?`),
+  setResult: db.prepare(`UPDATE markets SET result = ?, openPx = ?, closePx = ?, updatedAt = ? WHERE marketId = ?`),
+  settled: db.prepare(`SELECT marketId, asset, intervalSec, tradingStart, expiry, result, openPx, closePx FROM markets
+    WHERE result IS NOT NULL AND (asset = @asset OR @asset = '') AND (intervalSec = @intervalSec OR @intervalSec = 0)
+    ORDER BY expiry DESC LIMIT @limit`),
   setFillsDone: db.prepare(`UPDATE markets SET fillsDone = 1 WHERE marketId = ?`),
   insertFill: db.prepare(`INSERT OR IGNORE INTO fills (id,marketId,pool,txHash,ts,taker,side,qty,price,cost)
     VALUES (@id,@marketId,@pool,@txHash,@ts,@taker,@side,@qty,@price,@cost)`),
@@ -128,7 +137,38 @@ const stmts = {
     FROM fills f JOIN markets m ON m.marketId = f.marketId WHERE f.txHash = ? GROUP BY f.taker, f.marketId, f.side LIMIT 1`),
   getMeta: db.prepare(`SELECT value FROM meta WHERE key = ?`),
   setMeta: db.prepare(`INSERT INTO meta (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`),
+  recentFills: db.prepare(`SELECT f.ts, f.taker, f.side, f.qty, f.price, f.cost, f.txHash, f.marketId, m.asset, m.intervalSec
+    FROM fills f JOIN markets m ON m.marketId = f.marketId ORDER BY f.ts DESC, f.id DESC LIMIT ?`),
+  marketPositions: db.prepare(`SELECT taker, side, SUM(qty) AS qty, SUM(cost) AS cost, COUNT(*) AS fills, MAX(ts) AS lastTs
+    FROM fills WHERE marketId = ? GROUP BY taker, side ORDER BY qty DESC LIMIT ?`),
+  marketSummary: db.prepare(`SELECT COUNT(*) AS fills, COUNT(DISTINCT taker) AS traders, COALESCE(SUM(cost),0) AS volume,
+    COALESCE(SUM(CASE WHEN side='UP' THEN qty ELSE 0 END),0) AS upQty, COALESCE(SUM(CASE WHEN side='DOWN' THEN qty ELSE 0 END),0) AS downQty
+    FROM fills WHERE marketId = ?`),
 };
+
+/** Latest fills across the whole venue, newest first — the live ticker. */
+export function recentFills(limit = 30) {
+  return (stmts.recentFills.all(limit) as { ts: number; taker: string; side: Side; qty: number; price: number; cost: number; txHash: string; marketId: string; asset: string; intervalSec: number }[]).map(
+    (r) => ({ at: r.ts * 1000, taker: r.taker, side: r.side, qty: round(r.qty), price: round(r.price, 4), cost: round(r.cost), txHash: r.txHash, marketId: r.marketId, asset: r.asset, intervalSec: r.intervalSec }),
+  );
+}
+
+/** Who holds what on one window (from taker fills), plus a summary. */
+export function marketPositions(marketId: string, limit = 20) {
+  const id = marketId.toLowerCase();
+  const rows = (stmts.marketPositions.all(id, limit) as { taker: string; side: Side; qty: number; cost: number; fills: number; lastTs: number }[]).map((r) => ({
+    taker: r.taker,
+    side: r.side,
+    qty: round(r.qty),
+    cost: round(r.cost),
+    avgPrice: r.qty > 0 ? round(r.cost / r.qty, 4) : 0,
+    fills: r.fills,
+    lastAt: r.lastTs * 1000,
+    ...(AGENT_ADDRESS && r.taker === AGENT_ADDRESS ? { label: AGENT_LABEL } : {}),
+  }));
+  const s = stmts.marketSummary.get(id) as { fills: number; traders: number; volume: number; upQty: number; downQty: number };
+  return { marketId: id, summary: { fills: s.fills, traders: s.traders, volumeUsdc: round(s.volume), upQty: round(s.upQty), downQty: round(s.downQty) }, positions: rows };
+}
 
 export function upsertMarket(m: Omit<MarketRow, "result" | "fillsDone">): void {
   stmts.upsertMarket.run({ ...m, marketId: m.marketId.toLowerCase(), pool: m.pool.toLowerCase(), updatedAt: Date.now() });
@@ -145,11 +185,18 @@ export function insertFills(rows: Omit<FillRowDb, "result" | "pnl">[]): number {
   return n;
 }
 
-/** Record a market's outcome and settle every fill on it. */
-export function applyResult(marketId: string, result: MarketResult): void {
+/** Recently settled windows, newest first — the "recently settled" strip. */
+export function settledMarkets(asset = "", intervalSec = 0, limit = 12) {
+  return (stmts.settled.all({ asset, intervalSec, limit }) as { marketId: string; asset: string; intervalSec: number; tradingStart: number; expiry: number; result: MarketResult; openPx: number | null; closePx: number | null }[]).map(
+    (r) => ({ ...r, expiryAt: r.expiry * 1000 }),
+  );
+}
+
+/** Record a market's outcome (and oracle open/close) and settle every fill on it. */
+export function applyResult(marketId: string, result: MarketResult, px: { open: number | null; close: number | null } = { open: null, close: null }): void {
   const id = marketId.toLowerCase();
   const tx = db.transaction(() => {
-    stmts.setResult.run(result, Date.now(), id);
+    stmts.setResult.run(result, px.open, px.close, Date.now(), id);
     for (const f of stmts.fillsOfMarket.all(id) as FillRowDb[]) {
       const r: Result = result === "VOID" ? "void" : f.side === result ? "win" : "loss";
       const payout = r === "win" ? f.qty : r === "void" ? f.qty * 0.5 : 0;

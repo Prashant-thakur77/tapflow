@@ -42,6 +42,12 @@ export interface TapWindow {
   status: number;
   venueId: Hex | null;
   operatorId: number | null;
+  /** Cumulative traded collateral this window, human tUSDC (from the indexer row). */
+  volumeUsdc: number;
+  /** Fills this window. */
+  trades: number;
+  /** Last traded YES price in (0,1), or null. */
+  lastPrice: number | null;
 }
 
 function asAsset(a: string): Asset | null {
@@ -117,6 +123,9 @@ export async function listLiveWindows(
       status: oc.status,
       venueId: r.venueId ?? null,
       operatorId: r.operatorId ?? null,
+      volumeUsdc: Number(r.cumulativeQuoteVolume ?? 0) / 10 ** (r.quoteDecimals ?? 6),
+      trades: Number(r.tradeCount ?? 0),
+      lastPrice: r.lastPrice ? Number(r.lastPrice) / 10 ** (r.quoteDecimals ?? 6) : null,
     });
   });
   return out.sort((a, b) => a.expiry - b.expiry);

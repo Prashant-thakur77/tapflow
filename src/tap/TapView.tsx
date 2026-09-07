@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { useAccount, useChainId, useConnect, useSwitchChain } from "wagmi";
+import { useAccount, useChainId } from "wagmi";
 import toast from "react-hot-toast";
-import confetti from "canvas-confetti";
 import { ExternalLink, Droplets, Flame } from "lucide-react";
 import { STAKE_PRESETS, statsOf, useTapStore } from "../store";
 import {
@@ -13,7 +12,6 @@ import {
   fmtProb,
   fmtUsdc,
   getExchange,
-  placeTap,
   short,
   toRaw,
   txUrl,
@@ -31,6 +29,9 @@ import { TickNumber } from "./TickNumber";
 import { SessionControl } from "./SessionControl";
 import { useSession } from "./useSession";
 import { useBroadcast } from "./useCopy";
+import { useTap } from "./useTap";
+import { SettledStrip } from "./SettledStrip";
+import { ProDrawer } from "./ProDrawer";
 import { COPY_DEPLOYED } from "../lib/copy";
 import type { TapWindow } from "../lib/ec";
 import { HowItWorksModal } from "../HowItWorksModal";
@@ -44,7 +45,7 @@ function errText(e: unknown): string {
 }
 
 export const TapView: React.FC = () => {
-  const { asset, intervalSec, stake, taps, setAsset, setIntervalSec, setStake, pushTap } = useTapStore();
+  const { asset, intervalSec, stake, taps, setAsset, setIntervalSec, setStake } = useTapStore();
   const { window: w, windows, isLoading, rolling, error: windowsError } = useCurrentWindow(asset, intervalSec);
   const { left, pct } = useCountdown(w);
   const spot = useSpot(asset);
@@ -59,9 +60,8 @@ export const TapView: React.FC = () => {
 
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
-  const { connect, connectors } = useConnect();
-  const { switchChainAsync } = useSwitchChain();
-  const [busy, setBusy] = useState<Side | null>(null);
+  const { tap, busy: tapBusy } = useTap();
+  const busy: Side | null = tapBusy && w && tapBusy.marketId === w.marketId ? tapBusy.side : null;
   const [lastTx, setLastTx] = useState<{ side: Side; hash: string; filled: bigint; avg: number; w: TapWindow; limitYesPrice: bigint; broadcast?: { hash: string; block: bigint | null } } | null>(null);
   const { broadcast, pending: broadcasting } = useBroadcast();
 
@@ -109,68 +109,12 @@ export const TapView: React.FC = () => {
   const lowBalance = usdc !== undefined && usdc < toRaw(stake);
 
   const onTap = async (side: Side) => {
-    if (!isConnected || !address) {
-      connect({ connector: connectors[0] });
-      return;
-    }
-    if (chainId !== CHAIN_ID) {
-      try {
-        await switchChainAsync({ chainId: CHAIN_ID });
-      } catch (e) {
-        toast.error(errText(e));
-      }
-      return;
-    }
+    if (!w) return;
     const q = side === "UP" ? quotes.up : quotes.down;
-    if (!w || !q) return;
-    setBusy(side);
-    const id = toast.loading(`${side} · ${stake} tUSDC on ${asset} ${fmtCadence(w.intervalSec)}…`);
-    try {
-      const r = await placeTap(getExchange(), w, q);
-      if (r.filled > 0n) {
-        toast.success(
-          <span>
-            {side} filled: {fmtUsdc(r.filled)} shares @ {fmtProb(r.avgPrice)}{" "}
-            <a href={txUrl(r.hash)} target="_blank" rel="noreferrer" className="underline text-accent-soft">
-              tx ↗
-            </a>
-          </span>,
-          { id, duration: 8000 },
-        );
-        confetti({ particleCount: 70, spread: 60, origin: { y: 0.75 }, colors: [side === "UP" ? "#2ebd85" : "#f6465d", "#ffffff", "#0847F7"] });
-        pushTap({
-          at: Date.now(),
-          asset,
-          intervalSec: w.intervalSec,
-          marketId: w.marketId,
-          expiry: w.expiry,
-          side,
-          stake,
-          filled: Number(r.filled) / 1e6,
-          paid: Number(r.paid) / 1e6,
-          avgPrice: r.avgPrice,
-          hash: r.hash,
-        });
-        setLastTx({ side, hash: r.hash, filled: r.filled, avg: r.avgPrice, w, limitYesPrice: q.limitYesPrice });
-      } else {
-        toast(
-          <span>
-            Book moved, nothing filled.{" "}
-            <a href={txUrl(r.hash)} target="_blank" rel="noreferrer" className="underline">
-              tx ↗
-            </a>
-          </span>,
-          { id, icon: "↩" },
-        );
-      }
-      refreshAll();
-      void refetchPos();
-      void refetchBal();
-    } catch (e) {
-      toast.error(errText(e), { id });
-    } finally {
-      setBusy(null);
-    }
+    const r = await tap(w, side, stake, q);
+    if (r && r.filled > 0n && q) setLastTx({ side, hash: r.hash, filled: r.filled, avg: r.avgPrice, w, limitYesPrice: q.limitYesPrice });
+    void refetchPos();
+    void refetchBal();
   };
 
   const faucet = async () => {
@@ -285,7 +229,16 @@ export const TapView: React.FC = () => {
             <div className="mt-4">
               <OddsBar up={quotes.up?.impliedProb ?? null} down={quotes.down?.impliedProb ?? null} />
             </div>
+            {w ? (
+              <div className="mt-3 text-xs text-bn-text-dim text-center">
+                Will {asset} settle{" "}
+                <span className="text-white font-semibold">{openPx ? `above $${fmtPx(openPx)}` : "above its opening price"}</span> at{" "}
+                {new Date(w.expiry * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}?
+              </div>
+            ) : null}
           </div>
+
+          <SettledStrip asset={asset} intervalSec={w?.intervalSec ?? intervalSec} />
 
           <div className="hidden xl:block">
             <LiveTape w={w} me={address} />
@@ -393,6 +346,8 @@ export const TapView: React.FC = () => {
             </div>
             {windowsError ? <div className="text-down break-all">Couldn't load windows: {errText(windowsError)}</div> : null}
           </div>
+
+          {w ? <ProDrawer w={w} book={quotes.book} grid={quotes.grid} quote={quotes.up ?? quotes.down} side={quotes.up ? "UP" : "DOWN"} stake={stake} /> : null}
 
           <div className="xl:hidden">
             <LiveTape w={w} me={address} />

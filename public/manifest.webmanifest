@@ -1,0 +1,12 @@
+{
+  "name": "TapFlow — tap UP or DOWN on Somnia",
+  "short_name": "TapFlow",
+  "description": "One-tap UP/DOWN on live DreamDEX Event Contract windows. Follow the best tappers; their taps mirror into yours in the same block.",
+  "start_url": "/tap",
+  "display": "standalone",
+  "background_color": "#07090f",
+  "theme_color": "#07090f",
+  "icons": [
+    { "src": "/tapflow.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

@@ -1,6 +1,6 @@
 import http from "node:http";
 import { AGENT_ADDRESS, AGENT_LABEL, APP_URL, FEED_SECRET, PORT } from "./config.js";
-import { addFeed, follows, leader, leaderboard, listFeed, setFollow, stats, tapByTx, type FeedItem } from "./db.js";
+import { addFeed, follows, leader, leaderboard, listFeed, marketPositions, recentFills, setFollow, settledMarkets, stats, tapByTx, type FeedItem } from "./db.js";
 import { lastSync } from "./chain.js";
 import { ogCard, type Tone } from "./og.js";
 
@@ -49,6 +49,21 @@ export function startApi(): http.Server {
         return send(res, 200, { ok: true, lastBlock: null, fills: s.fills, lastSync });
       }
       if (p === "/api/stats") return send(res, 200, stats());
+      if (p === "/api/settled") {
+        const asset = (url.searchParams.get("asset") ?? "").toUpperCase();
+        const intervalSec = Number(url.searchParams.get("intervalSec") ?? 0) || 0;
+        const limit = Math.min(60, Math.max(1, Number(url.searchParams.get("limit") ?? 12)));
+        return send(res, 200, settledMarkets(asset, intervalSec, limit));
+      }
+      if (p === "/api/recent") {
+        const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit") ?? 30)));
+        return send(res, 200, recentFills(limit));
+      }
+      if (p.startsWith("/api/market/") && p.endsWith("/positions")) {
+        const id = p.slice("/api/market/".length, -"/positions".length);
+        if (!/^0x[0-9a-fA-F]{64}$/.test(id)) return send(res, 400, { error: "bad marketId" });
+        return send(res, 200, marketPositions(id, Math.min(50, Number(url.searchParams.get("limit") ?? 20))));
+      }
       if (p === "/api/leaderboard") {
         const limit = Math.min(200, Math.max(1, Number(url.searchParams.get("limit") ?? 50)));
         return send(res, 200, leaderboard(limit));

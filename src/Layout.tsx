@@ -2,6 +2,7 @@ import React from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
+import { LiveTicker } from "./tap/LiveTicker";
 
 export const Layout: React.FC = () => {
   const location = useLocation();
@@ -21,6 +22,7 @@ export const Layout: React.FC = () => {
         className={`flex-1 flex flex-col h-full relative z-10 transition-all duration-300 overflow-auto ${isIntro ? "" : "xl:pl-[220px] 2xl:pl-64 pb-[60px] xl:pb-0"}`}
       >
         {!isIntro && <Header />}
+        {!isIntro && <LiveTicker />}
         <Outlet />
       </main>
     </div>
