@@ -32,6 +32,8 @@ import { useBroadcast } from "./useCopy";
 import { useTap } from "./useTap";
 import { SettledStrip } from "./SettledStrip";
 import { ProDrawer } from "./ProDrawer";
+import { OddsChart } from "./OddsChart";
+import { TopPositions } from "./TopPositions";
 import { COPY_DEPLOYED } from "../lib/copy";
 import type { TapWindow } from "../lib/ec";
 import { HowItWorksModal } from "../HowItWorksModal";
@@ -229,6 +231,7 @@ export const TapView: React.FC = () => {
             <div className="mt-4">
               <OddsBar up={quotes.up?.impliedProb ?? null} down={quotes.down?.impliedProb ?? null} />
             </div>
+            <OddsChart w={w} liveUp={quotes.up?.impliedProb ?? null} />
             {w ? (
               <div className="mt-3 text-xs text-bn-text-dim text-center">
                 Will {asset} settle{" "}
@@ -239,6 +242,8 @@ export const TapView: React.FC = () => {
           </div>
 
           <SettledStrip asset={asset} intervalSec={w?.intervalSec ?? intervalSec} />
+
+          <TopPositions w={w} me={address} />
 
           <div className="hidden xl:block">
             <LiveTape w={w} me={address} />

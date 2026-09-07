@@ -33,7 +33,10 @@ Prediction markets are solo and clunky: connect, approve, read an order book, si
 | **F4** | Fills indexer + leaderboard API | ✅ live | 47 wallets / 177 taps / 3.6k tUSDC indexed from chain |
 | **F5** | TapBot momentum agent | ✅ built, configured with the leader key | live signal + window-odds read verified; broadcasts through the deployed Router |
 | **F6** | Telegram bot + mini-app | ✅ built | `tsc` clean, live `/window` odds path verified |
-| **F7** | README + SDK feedback | ✅ this file + `SDK-FEEDBACK.md` | — |
+| **F7** | README + SDK feedback | ✅ this file + `SDK-FEEDBACK.md` | 17 measured items |
+| **+** | Markets grid, live venue ticker, settled strip, pro drawer | ✅ live | [/markets](https://tapflow-phi.vercel.app/markets) — every window as a card with odds, countdown and payout-on-chip quick taps |
+| **+** | Proof page + leader profiles + agent strip | ✅ live | [/proof](https://tapflow-phi.vercel.app/proof) — the indexer pairs every reactive mirror with its broadcast (6/6 same block); `/leader/:address` |
+| **+** | Chain-indexed fills | ✅ live | the upstream tape lagged 100 min and missed wallets, so fills are read from pool logs (`OrderPlaced` + `OrderFilled`) |
 
 Everything above runs against real Shannon transactions from wallet `0x6798…F228` (leader) and `0x1AD9…2015` (follower). Only the RiskGuard subscription is still pending: it needs another 32 STT, which is one more faucet claim away.
 
