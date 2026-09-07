@@ -92,7 +92,7 @@ export const SessionControl: React.FC<{ compact?: boolean }> = ({ compact }) => 
                   </button>
                 ))}
               </div>
-              <p className="text-[11px] text-bn-text-muted mt-2">Max {SESSION_CAP_USDC} tUSDC. Plus ~1.5 STT for gas. One signature to fund.</p>
+              <p className="text-[11px] text-bn-text-muted mt-2">Max {SESSION_CAP_USDC} tUSDC. Plus ~1.5 STT for gas. Two quick signatures to fund (tUSDC, then gas), then none.</p>
             </div>
             <button onClick={onStart} disabled={busy !== null} className="btn-primary w-full mt-5 py-2.5 rounded-lg font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60">
               {busy === "start" ? <Loader2 size={15} className="animate-spin" /> : <Zap size={15} />}

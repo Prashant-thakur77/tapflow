@@ -36,11 +36,13 @@ export interface FeedItem {
   actor: string;
   label?: string;
   asset: string;
-  side: "UP" | "DOWN";
+  side: "UP" | "DOWN" | "HOLD";
   stake: number;
   price: number;
   rationale: string;
   txHash: string;
+  /** risk-gate reason code on agent entries */
+  code?: string;
 }
 
 export interface RecentFill {

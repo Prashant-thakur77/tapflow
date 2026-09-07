@@ -1,7 +1,7 @@
 import "dotenv/config";
 import type { Hex } from "viem";
 
-const env = (k: string, d = "") => process.env[k] ?? d;
+export const env = (k: string, d = "") => process.env[k] ?? d;
 
 export const config = {
   chainId: 50312,
@@ -24,10 +24,14 @@ export const config = {
 
   // Strategy knobs.
   asset: (env("AGENT_ASSET", "BTC").toUpperCase() as "BTC" | "ETH"),
-  cadenceSec: Number(env("AGENT_CADENCE_SEC", "300")),
+  /** "auto" = shortest live cadence for the asset; else seconds. */
+  cadence: env("AGENT_CADENCE_SEC", "auto"),
+  cadenceSec: Number(env("AGENT_CADENCE_SEC", "300")) || 0,
   stakeUsdc: Number(env("AGENT_STAKE_USDC", "2")),
   intervalMs: Number(env("AGENT_INTERVAL_MS", "20000")),
   momentumBps: Number(env("AGENT_MOMENTUM_BPS", "5")), // min move to act, in bps
   minLeftSec: Number(env("AGENT_MIN_LEFT_SEC", "40")),
   dryRun: env("AGENT_DRY_RUN", "false") === "true",
+  autoClaim: env("AUTO_CLAIM", "true") !== "false",
+  holdHeartbeatMs: Number(env("AGENT_HOLD_HEARTBEAT_MS", String(10 * 60_000))),
 };

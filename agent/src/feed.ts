@@ -8,11 +8,13 @@ export interface FeedItem {
   actor: string;
   label?: string;
   asset: Asset;
-  side: Side;
+  side: Side | "HOLD";
   stake: number;
   price: number;
   rationale: string;
   txHash: string;
+  /** risk-gate reason code */
+  code?: string;
 }
 
 /** Publish a rationale to the TapFlow indexer feed (best-effort). */

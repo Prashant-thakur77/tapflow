@@ -1,5 +1,6 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
+import { SameBlockDiagram } from "./components/SameBlockDiagram";
 import { useBalance, useReadContract } from "wagmi";
 import { Link } from "react-router-dom";
 import { CheckCircle2, ExternalLink, Zap } from "lucide-react";
@@ -139,6 +140,10 @@ export const ProofView: React.FC = () => {
               </table>
             </div>
           )}
+        </section>
+
+        <section className="tf-card p-3 sm:p-4">
+          <SameBlockDiagram block={proof?.latest?.[0]?.block} />
         </section>
 
         <div className="grid sm:grid-cols-2 gap-3">

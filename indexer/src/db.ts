@@ -67,11 +67,13 @@ export interface FeedItem {
   actor: string;
   label?: string;
   asset: string;
-  side: Side;
+  side: Side | "HOLD";
   stake: number;
   price: number;
   rationale: string;
   txHash: string;
+  /** risk-gate reason code (agent heartbeats) */
+  code?: string;
 }
 
 export const db = new Database(DB_PATH);
@@ -97,6 +99,7 @@ CREATE TABLE IF NOT EXISTS follows (follower TEXT PRIMARY KEY, leader TEXT NOT N
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 `);
 // Opening / closing oracle prices for settled windows (added after v1; guarded for old DBs).
+try { db.exec("ALTER TABLE feed ADD COLUMN code TEXT"); } catch { /* exists */ }
 for (const col of ["openPx REAL", "closePx REAL"]) {
   const name = col.split(" ")[0];
   const has = (db.prepare(`PRAGMA table_info(markets)`).all() as { name: string }[]).some((c) => c.name === name);
@@ -132,8 +135,9 @@ const stmts = {
   leaderOf: db.prepare(`SELECT leader FROM follows WHERE follower = ?`),
   upsertFollow: db.prepare(`INSERT INTO follows (follower,leader,at) VALUES (?,?,?) ON CONFLICT(follower) DO UPDATE SET leader=excluded.leader, at=excluded.at`),
   deleteFollow: db.prepare(`DELETE FROM follows WHERE follower = ?`),
-  insertFeed: db.prepare(`INSERT INTO feed (at,actor,label,asset,side,stake,price,rationale,txHash) VALUES (@at,@actor,@label,@asset,@side,@stake,@price,@rationale,@txHash)`),
-  listFeed: db.prepare(`SELECT at,actor,label,asset,side,stake,price,rationale,txHash FROM feed ORDER BY at DESC LIMIT ?`),
+  insertFeed: db.prepare(`INSERT INTO feed (at,actor,label,asset,side,stake,price,rationale,txHash,code) VALUES (@at,@actor,@label,@asset,@side,@stake,@price,@rationale,@txHash,@code)`),
+  listFeed: db.prepare(`SELECT at,actor,label,asset,side,stake,price,rationale,txHash,code FROM feed ORDER BY at DESC LIMIT ?`),
+  listTapFeed: db.prepare(`SELECT at,actor,label,asset,side,stake,price,rationale,txHash,code FROM feed WHERE side != 'HOLD' ORDER BY at DESC LIMIT ?`),
   tapByTx: db.prepare(`SELECT f.taker, f.marketId, f.txHash, f.side, MIN(f.ts) AS ts, SUM(f.qty) AS qty, SUM(f.cost) AS cost,
       MAX(f.result) AS result, SUM(f.pnl) AS pnl, m.asset, m.intervalSec
     FROM fills f JOIN markets m ON m.marketId = f.marketId WHERE f.txHash = ? GROUP BY f.taker, f.marketId, f.side LIMIT 1`),
@@ -330,10 +334,12 @@ export function stats() {
 }
 
 export function addFeed(item: FeedItem): void {
-  stmts.insertFeed.run({ label: null, ...item, actor: item.actor.toLowerCase() });
+  stmts.insertFeed.run({ label: null, code: null, ...item, actor: item.actor.toLowerCase() });
 }
-export const listFeed = (limit = 30) =>
-  (stmts.listFeed.all(limit) as (FeedItem & { label: string | null })[]).map(({ label, ...r }) => (label ? { ...r, label } : r)) as FeedItem[];
+export const listFeed = (limit = 30, tapsOnly = false) =>
+  ((tapsOnly ? stmts.listTapFeed : stmts.listFeed).all(limit) as (FeedItem & { label: string | null; code: string | null })[]).map(
+    ({ label, code, ...r }) => ({ ...r, ...(label ? { label } : {}), ...(code ? { code } : {}) }),
+  ) as FeedItem[];
 
 export function setFollow(follower: string, leader: string | null): void {
   if (!leader) stmts.deleteFollow.run(follower.toLowerCase());

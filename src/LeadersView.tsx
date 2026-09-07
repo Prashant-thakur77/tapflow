@@ -221,25 +221,31 @@ export const LeadersView: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-2">
-                {feed.map((f) => (
-                  <a
-                    key={f.txHash + f.at}
-                    href={txUrl(f.txHash)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block border border-white/5 rounded-lg p-2 hover:border-white/15"
-                  >
-                    <div className="flex items-center justify-between text-[11px]">
-                      <span className="flex items-center gap-1 font-bold">
-                        <Bot size={11} className="text-accent-soft" />
-                        {f.label ?? short(f.actor)}
-                        <span className={f.side === "UP" ? "text-up" : "text-down"}>· {f.side}</span>
-                      </span>
-                      <span className="text-bn-text-muted">{ago(f.at)}</span>
-                    </div>
-                    <div className="text-[11px] text-bn-text-dim mt-1 leading-snug">{f.rationale}</div>
-                  </a>
-                ))}
+                {feed.map((f) => {
+                  const hold = f.side === "HOLD";
+                  const Row = hold ? "div" : "a";
+                  return (
+                    <Row
+                      key={f.txHash + f.at}
+                      {...(hold ? {} : { href: txUrl(f.txHash), target: "_blank", rel: "noreferrer" })}
+                      className={`block border rounded-lg p-2 ${hold ? "border-dashed border-white/10 opacity-80" : "border-white/5 hover:border-white/15"}`}
+                    >
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="flex items-center gap-1 font-bold">
+                          <Bot size={11} className="text-accent-soft" />
+                          {f.label ?? short(f.actor)}
+                          {hold ? (
+                            <span className="text-bn-text-muted font-mono">· holding{f.code ? ` · ${f.code.toLowerCase().replace(/_/g, " ")}` : ""}</span>
+                          ) : (
+                            <span className={f.side === "UP" ? "text-up" : "text-down"}>· {f.side}</span>
+                          )}
+                        </span>
+                        <span className="text-bn-text-muted">{ago(f.at)}</span>
+                      </div>
+                      <div className="text-[11px] text-bn-text-dim mt-1 leading-snug">{f.rationale}</div>
+                    </Row>
+                  );
+                })}
               </div>
             )}
           </section>

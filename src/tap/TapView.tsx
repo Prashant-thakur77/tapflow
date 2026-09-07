@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useAccount, useChainId } from "wagmi";
 import toast from "react-hot-toast";
 import { ExternalLink, Droplets, Flame } from "lucide-react";
@@ -27,6 +27,7 @@ import { LiveTape } from "./LiveTape";
 import { ResultCard } from "./ResultCard";
 import { TickNumber } from "./TickNumber";
 import { SessionControl } from "./SessionControl";
+import { ClaimBanner } from "./ClaimBanner";
 import { useSession } from "./useSession";
 import { useBroadcast } from "./useCopy";
 import { useTap } from "./useTap";
@@ -110,6 +111,22 @@ export const TapView: React.FC = () => {
   const locking = !!w && left < 5;
   const lowBalance = usdc !== undefined && usdc < toRaw(stake);
 
+  // Keyboard: ↑/U = UP, ↓/D = DOWN, 1-3 = stake. Desktop tappers never leave the home row.
+  const onTapRef = useRef<(side: Side) => void>(() => {});
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (e.metaKey || e.ctrlKey || e.altKey || (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) || t?.isContentEditable) return;
+      if (document.querySelector("[role=dialog]")) return;
+      const k = e.key.toLowerCase();
+      if (k === "arrowup" || k === "u") { e.preventDefault(); onTapRef.current("UP"); }
+      else if (k === "arrowdown" || k === "d") { e.preventDefault(); onTapRef.current("DOWN"); }
+      else if (k >= "1" && k <= "3") { const n = STAKE_PRESETS[Number(k) - 1]; if (n) setStake(n); }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [setStake]);
+
   const onTap = async (side: Side) => {
     if (!w) return;
     const q = side === "UP" ? quotes.up : quotes.down;
@@ -118,6 +135,7 @@ export const TapView: React.FC = () => {
     void refetchPos();
     void refetchBal();
   };
+
 
   const faucet = async () => {
     const id = toast.loading("Minting tUSDC…");
@@ -137,6 +155,12 @@ export const TapView: React.FC = () => {
   };
 
   const disabled = !w || locking || busy !== null;
+  useEffect(() => {
+    onTapRef.current = (side) => {
+      if (disabled) return;
+      void onTap(side);
+    };
+  });
 
   // Dev-only design preview of the settlement card (?preview=win|loss|void).
   // Stripped from production builds; the real card is driven by useSettlement.
@@ -252,6 +276,7 @@ export const TapView: React.FC = () => {
         {/* ── right column: the decision ── */}
         <div className="flex flex-col gap-3 min-w-0">
           {isConnected ? <SessionControl /> : null}
+          {isConnected ? <ClaimBanner /> : null}
 
           <div className="tf-card px-3 py-2 flex items-center justify-between">
             <span className="text-[10px] uppercase tracking-[0.25em] text-bn-text-muted">stake</span>
@@ -270,6 +295,11 @@ export const TapView: React.FC = () => {
           >
             <TapButton side="UP" quote={quotes.up} stake={stake} busy={busy === "UP"} disabled={disabled} onTap={onTap} />
             <TapButton side="DOWN" quote={quotes.down} stake={stake} busy={busy === "DOWN"} disabled={disabled} onTap={onTap} />
+          </div>
+          <div className="hidden xl:flex items-center justify-center gap-3 text-[10px] font-mono text-bn-text-muted -mt-1">
+            <span><kbd className="px-1 rounded bg-white/10 text-white">↑</kbd> UP</span>
+            <span><kbd className="px-1 rounded bg-white/10 text-white">↓</kbd> DOWN</span>
+            <span><kbd className="px-1 rounded bg-white/10 text-white">1</kbd><kbd className="px-1 rounded bg-white/10 text-white ml-0.5">2</kbd><kbd className="px-1 rounded bg-white/10 text-white ml-0.5">3</kbd> stake</span>
           </div>
 
           <div className="tf-card p-3 text-xs flex flex-col gap-2">

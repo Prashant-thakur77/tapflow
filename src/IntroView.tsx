@@ -6,6 +6,7 @@ import { useCountdown, useCurrentWindow, useLiveWindows, useNow, useSpot } from 
 import { WindowRing } from "./tap/WindowRing";
 import { fmtCadence, fmtCountdown } from "./lib/ec";
 import { useProof, useStats } from "./tap/useLeaderboard";
+import { SameBlockDiagram } from "./components/SameBlockDiagram";
 
 const FEATURES = [
   { Icon: Zap, tag: "01", color: "#0847F7", title: "One tap. Real order.", body: "Every window is a DreamDEX Event Contract. Your stake becomes an IOC order on a live on-chain book. No mock, no house." },
@@ -142,6 +143,9 @@ export const IntroView: React.FC = () => {
                 </div>
               ))}
             </div>
+          </div>
+          <div className="relative mt-4 hidden sm:block">
+            <SameBlockDiagram block={(proof?.latest?.[0] as { block?: number } | undefined)?.block} compact />
           </div>
         </motion.div>
 

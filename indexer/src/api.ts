@@ -83,13 +83,13 @@ export function startApi(): http.Server {
       }
       if (p === "/api/feed" && req.method === "GET") {
         const limit = Math.min(200, Math.max(1, Number(url.searchParams.get("limit") ?? 30)));
-        return send(res, 200, listFeed(limit));
+        return send(res, 200, listFeed(limit, url.searchParams.get("taps") === "1"));
       }
       if (p === "/api/feed" && req.method === "POST") {
         const body = await readJson(req);
         if (FEED_SECRET && body.secret !== FEED_SECRET) return send(res, 401, { error: "bad secret" });
         const it = body.item as Partial<FeedItem> | undefined;
-        if (!it || !isAddr(it.actor) || (it.side !== "UP" && it.side !== "DOWN") || typeof it.rationale !== "string" || typeof it.asset !== "string") {
+        if (!it || !isAddr(it.actor) || (it.side !== "UP" && it.side !== "DOWN" && it.side !== "HOLD") || typeof it.rationale !== "string" || typeof it.asset !== "string") {
           return send(res, 400, { error: "item needs actor, asset, side, stake, price, rationale, txHash" });
         }
         addFeed({
@@ -102,6 +102,7 @@ export function startApi(): http.Server {
           price: Number(it.price ?? 0),
           rationale: it.rationale.slice(0, 280),
           txHash: String(it.txHash ?? ""),
+          ...(typeof it.code === "string" ? { code: it.code.slice(0, 32) } : {}),
         });
         return send(res, 201, { ok: true });
       }

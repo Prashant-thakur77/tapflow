@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Zap } from "lucide-react";
+import { Code2, Zap } from "lucide-react";
+import toast from "react-hot-toast";
 import { ASSETS, cadences, fmtCadence, fmtCountdown, fmtProb, fmtUsdc, type Asset, type Side, type TapWindow } from "./lib/ec";
 import { STAKE_PRESETS, useTapStore } from "./store";
 import { useCountdown, useLiveWindows, useOpeningPrice, useSpot, useTapQuotes } from "./tap/hooks";
@@ -9,7 +10,7 @@ import { useTap } from "./tap/useTap";
 const fmtPx = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 /** One live window as a card: question, countdown, odds, volume, quick taps. */
-const WindowCard: React.FC<{ w: TapWindow; stake: number }> = ({ w, stake }) => {
+export const WindowCard: React.FC<{ w: TapWindow; stake: number }> = ({ w, stake }) => {
   const { left, pct } = useCountdown(w);
   const spot = useSpot(w.asset);
   const { data: opening } = useOpeningPrice(w);
@@ -107,9 +108,22 @@ const WindowCard: React.FC<{ w: TapWindow; stake: number }> = ({ w, stake }) => 
         <span>
           {w.volumeUsdc >= 1 ? `${Math.round(w.volumeUsdc).toLocaleString()} tUSDC vol` : "fresh window"} · {w.trades} fills
         </span>
-        <Link to="/tap" onClick={() => { setAsset(w.asset); setIntervalSec(w.intervalSec); }} className="flex items-center gap-1 text-accent-soft hover:text-white">
-          <Zap size={11} /> focus
-        </Link>
+        <span className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              const cad = w.intervalSec >= 3600 ? `${w.intervalSec / 3600}h` : `${w.intervalSec / 60}m`;
+              const snippet = `<iframe src="${window.location.origin}/embed/${w.asset}/${cad}" width="380" height="330" style="border:0;border-radius:16px" loading="lazy"></iframe>`;
+              void navigator.clipboard?.writeText(snippet).then(() => toast.success("Embed snippet copied — paste it into any site"));
+            }}
+            className="flex items-center gap-1 hover:text-white"
+            title="copy an iframe snippet for this window"
+          >
+            <Code2 size={11} /> embed
+          </button>
+          <Link to="/tap" onClick={() => { setAsset(w.asset); setIntervalSec(w.intervalSec); }} className="flex items-center gap-1 text-accent-soft hover:text-white">
+            <Zap size={11} /> focus
+          </Link>
+        </span>
       </div>
     </div>
   );

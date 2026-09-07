@@ -9,6 +9,7 @@ import { LeadersView } from "./LeadersView";
 import { MarketsView } from "./MarketsView";
 import { ProofView } from "./ProofView";
 import { LeaderView } from "./LeaderView";
+import { EmbedView } from "./EmbedView";
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
         }}
       />
       <Routes>
+        <Route path="/embed/:asset/:cadence" element={<EmbedView />} />
         <Route element={<Layout />}>
           <Route path="/" element={<IntroView />} />
           <Route path="/tap" element={<TapView />} />

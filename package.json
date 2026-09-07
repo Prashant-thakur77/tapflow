@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "generate:api": "orval"
+    "generate:api": "orval",
+    "doctor": "tsx scripts/doctor.ts"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.9",
