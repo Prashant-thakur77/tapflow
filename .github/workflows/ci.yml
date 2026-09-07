@@ -1,0 +1,46 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  web:
+    name: web · lint + typecheck + build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+  services:
+    name: indexer + agent + tg-bot · typecheck
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        dir: [indexer, agent, tg-bot]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm, cache-dependency-path: ${{ matrix.dir }}/package-lock.json }
+      - run: npm ci
+        working-directory: ${{ matrix.dir }}
+      - run: npm run typecheck
+        working-directory: ${{ matrix.dir }}
+
+  contracts:
+    name: contracts · forge test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: recursive }
+      - uses: foundry-rs/foundry-toolchain@v1
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm ci
+        working-directory: contracts
+      - run: forge test -vv
+        working-directory: contracts

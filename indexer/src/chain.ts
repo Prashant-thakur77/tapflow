@@ -9,7 +9,7 @@ import { SomniaMarkets, SOMNIA_TESTNET_ADDRESSES, type BinaryMarket } from "@som
 import { defineChain } from "viem";
 import { BACKFILL, CHAIN_ID, INDEXER_URL, ONE, RPC_URL, VENUE_ID, WS_RPC_URL } from "./config.js";
 import { applyResult, getMarket, getMeta, insertFills, markFillsDone, setMeta, upsertMarket, type MarketResult, type Side } from "./db.js";
-import { syncMarketsFromChain } from "./newmarkets.js";
+import { resolvePendingFromChain, syncMarketsFromChain } from "./newmarkets.js";
 import { syncMirrors } from "./mirrors.js";
 import { syncChainFills } from "./chainfills.js";
 
@@ -163,6 +163,7 @@ export async function syncOnce(): Promise<void> {
   // Chain-only scanners: new windows from MarketCreated, reactive mirrors, taker fills.
   for (const [name, fn] of [
     ["new markets", syncMarketsFromChain],
+    ["results", resolvePendingFromChain],
     ["mirrors", syncMirrors],
     ["chain fills", syncChainFills],
   ] as const) {

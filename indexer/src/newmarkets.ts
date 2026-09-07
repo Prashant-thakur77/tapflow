@@ -8,7 +8,7 @@
 
 import { createPublicClient, defineChain, http, parseAbiItem, type Hex } from "viem";
 import { CHAIN_ID, RPC_URL, VENUE_ID } from "./config.js";
-import { db, getMeta, setMeta, upsertMarket } from "./db.js";
+import { applyResult, db, getMeta, setMeta, upsertMarket } from "./db.js";
 import { client } from "./chain.js";
 
 const log = (...a: unknown[]) => console.log(new Date().toISOString().slice(11, 19), ...a);
@@ -30,7 +30,31 @@ const st = {
   live: db.prepare(`SELECT marketId, pool, asset, intervalSec, tradingStart, expiry FROM markets WHERE expiry > ? AND status != 'Finalized' ORDER BY expiry`),
   finalize: db.prepare(`UPDATE markets SET status = 'Finalized', updatedAt = ? WHERE marketId = ?`),
   activity: db.prepare(`SELECT COUNT(*) AS trades, COALESCE(SUM(cost), 0) AS volume FROM fills WHERE marketId = ?`),
+  pending: db.prepare(`SELECT marketId FROM markets WHERE expiry < ? AND result IS NULL ORDER BY expiry DESC LIMIT 25`),
 };
+
+/**
+ * Results straight from chain for windows past expiry with no result yet —
+ * so the leaderboard and the agent's record keep moving when the upstream
+ * indexer (which normally tells us which markets finalized) is down.
+ */
+export async function resolvePendingFromChain(): Promise<number> {
+  const rows = st.pending.all(Math.floor(Date.now() / 1000) - 20) as { marketId: string }[];
+  let n = 0;
+  for (const r of rows) {
+    try {
+      const oc = await client.getMarketOnchain(r.marketId as Hex);
+      if (oc.isVoided) applyResult(r.marketId, "VOID");
+      else if (oc.isResolved) applyResult(r.marketId, oc.winningOutcome === 0 ? "UP" : "DOWN");
+      else continue;
+      n++;
+    } catch {
+      /* next pass */
+    }
+  }
+  if (n) log(`resolved ${n} window(s) from chain`);
+  return n;
+}
 
 export let marketsCursor = Number(getMeta("newmarkets_cursor") ?? 0);
 
