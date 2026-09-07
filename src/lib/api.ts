@@ -5,6 +5,7 @@ const BASE =
   ((import.meta as unknown as { env?: Record<string, string | undefined> }).env?.VITE_TAPFLOW_API ??
     "http://localhost:8787").replace(/\/$/, "");
 
+export const EXPLORER_URL = "https://shannon-explorer.somnia.network";
 export const TAPFLOW_API = BASE;
 
 export interface Stats {

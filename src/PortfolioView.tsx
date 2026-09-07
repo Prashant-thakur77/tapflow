@@ -6,6 +6,7 @@ import { ExternalLink, Gift } from "lucide-react";
 import { claim, fmtCadence, fmtProb, fmtUsdc, getClient, getExchange, short, txUrl, windowPosition, type TapWindow } from "./lib/ec";
 import { useBalances, useClaimable, useLiveWindows, useRefreshAfterTx } from "./tap/hooks";
 import { useTapStore } from "./store";
+import { CopyVaultCard } from "./tap/CopyVaultCard";
 
 export const PortfolioView: React.FC = () => {
   const { address, isConnected } = useAccount();
@@ -66,6 +67,8 @@ export const PortfolioView: React.FC = () => {
             <div className="font-mono text-2xl font-black">{stt !== undefined ? (Number(stt) / 1e18).toFixed(3) : "—"}</div>
           </div>
         </div>
+
+        <CopyVaultCard />
 
         <section className="tf-card p-4">
           <div className="flex items-center justify-between mb-3">

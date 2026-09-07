@@ -45,6 +45,11 @@ const me = config.botPrivateKey ? privateKeyToAccount(config.botPrivateKey).addr
 
 let placing = false;
 let lastHold: { code: string; at: number } = { code: "", at: 0 };
+// A reason has to persist for a few ticks before it is worth telling followers —
+// upstream indexer hiccups flip NO_WINDOW on and off and must not reach the feed.
+let stable: { code: string; ticks: number } = { code: "", ticks: 0 };
+const HOLD_MIN_GAP_MS = 2 * 60_000;
+const HOLD_STABLE_TICKS = 3;
 
 async function sample() {
   for (const a of ASSETS) {
@@ -70,8 +75,10 @@ function chooseWindow(windows: TapWindow[], asset: typeof config.asset): TapWind
 
 /** Publish a hold to the feed, but only when the reason changes or the heartbeat is due. */
 async function publishHold(asset: typeof config.asset, v: Verdict, w: TapWindow | undefined, price: number | null) {
-  const due = v.code !== lastHold.code || Date.now() - lastHold.at > config.holdHeartbeatMs;
-  if (!due || !canTrade()) return;
+  stable = stable.code === v.code ? { code: v.code, ticks: stable.ticks + 1 } : { code: v.code, ticks: 1 };
+  const changed = v.code !== lastHold.code && stable.ticks >= HOLD_STABLE_TICKS && Date.now() - lastHold.at > HOLD_MIN_GAP_MS;
+  const heartbeat = Date.now() - lastHold.at > config.holdHeartbeatMs;
+  if (!(changed || heartbeat) || !canTrade()) return;
   lastHold = { code: v.code, at: Date.now() };
   await postFeed({
     at: Date.now(),

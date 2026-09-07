@@ -3,10 +3,12 @@ import { Outlet, useLocation } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { LiveTicker } from "./tap/LiveTicker";
+import { useMirrorAlerts } from "./tap/useMirrorAlerts";
 
 export const Layout: React.FC = () => {
   const location = useLocation();
   const isIntro = location.pathname === "/";
+  useMirrorAlerts();
 
   return (
     <div
