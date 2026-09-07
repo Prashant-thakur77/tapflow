@@ -9,7 +9,7 @@ TapFlow turns every live DreamDEX Event Contract into a one-tap UP/DOWN game, le
   <img src="docs/media/leaderboard.png" width="520" alt="TapFlow leaderboard" />
 </p>
 
-- **Live app:** https://tapflow-prashant-thakurs-projects-4cc2a1b9.vercel.app
+- **Live app:** https://tapflow-phi.vercel.app
 - **Same-block mirror, on the explorer:** [block 482312219](https://shannon-explorer.somnia.network/block/482312219) — leader broadcast and follower's reactive order, one block.
 - **Telegram bot:** `<t.me/your_bot>` · **Demo video:** `<link>`
 - Every number in the app is read live from Somnia Shannon. Nothing in the demo path is mocked.

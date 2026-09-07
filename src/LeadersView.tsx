@@ -1,10 +1,29 @@
-import React from "react";
+import React, { useState } from "react";
 import { useAccount } from "wagmi";
 import toast from "react-hot-toast";
 import { Bot, Trophy, UserPlus, Zap } from "lucide-react";
 import { addressUrl, short, txUrl } from "./lib/ec";
+import { COPY, COPY_DEPLOYED } from "./lib/copy";
 import type { Leader } from "./lib/api";
 import { useAgentFeed, useFollow, useLeaderboard, useStats } from "./tap/useLeaderboard";
+import { useFollowerCount } from "./tap/useCopy";
+import { FollowModal } from "./tap/FollowModal";
+
+/** Indexer count plus the on-chain MirrorVault count, when the contracts are deployed. */
+const FollowerCell: React.FC<{ address: string; offchain: number }> = ({ address, offchain }) => {
+  const { data } = useFollowerCount(COPY_DEPLOYED ? address : undefined);
+  return (
+    <span className="font-mono">
+      {offchain}
+      {data !== undefined ? (
+        <span className="text-accent-soft" title="on-chain followers in MirrorVault">
+          {" "}
+          · ⛓{Number(data)}
+        </span>
+      ) : null}
+    </span>
+  );
+};
 
 const medal = (i: number) => (i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`);
 const ago = (ms: number) => {
@@ -25,10 +44,15 @@ export const LeadersView: React.FC = () => {
   const { data: leaders, isLoading, isError } = useLeaderboard(50);
   const { data: feed } = useAgentFeed(20);
   const followMut = useFollow();
+  const [target, setTarget] = useState<Leader | null>(null);
 
   const onFollow = (leader: Leader) => {
     if (!address) {
       toast.error("Connect a wallet to follow");
+      return;
+    }
+    if (COPY_DEPLOYED) {
+      setTarget(leader);
       return;
     }
     followMut.mutate(
@@ -113,7 +137,9 @@ export const LeadersView: React.FC = () => {
                             {l.pnlUsdc >= 0 ? "+" : ""}
                             {l.pnlUsdc.toFixed(2)}
                           </td>
-                          <td className="text-right font-mono">{l.followers}</td>
+                          <td className="text-right">
+                            <FollowerCell address={l.address} offchain={l.followers} />
+                          </td>
                           <td className="text-right">
                             {!mine ? (
                               <button
@@ -133,10 +159,23 @@ export const LeadersView: React.FC = () => {
               </div>
             )}
             <p className="text-[10px] text-bn-text-muted mt-3">
-              Following registers your interest here; the same-block on-chain mirror runs through <code>MirrorVault</code> + <code>CopyHandler</code>{" "}
-              once you deposit and the copy contracts are deployed.
+              {COPY_DEPLOYED ? (
+                <>
+                  Follow deposits a capped budget into <code>MirrorVault</code> ({short(COPY.vault)}); <code>CopyHandler</code> (reactivity sub #{COPY.subscription}) mirrors
+                  the leader's taps into your order in the same block.
+                </>
+              ) : (
+                <>Following registers your interest here; the on-chain mirror lights up once the copy contracts are deployed.</>
+              )}
             </p>
           </section>
+          <FollowModal
+            leader={target}
+            onClose={() => setTarget(null)}
+            onFollowed={() => {
+              if (address && target) followMut.mutate({ follower: address, leader: target.address });
+            }}
+          />
 
           {/* agent feed */}
           <section className="tf-card p-3 sm:p-4">

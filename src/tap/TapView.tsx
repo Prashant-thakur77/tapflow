@@ -30,6 +30,9 @@ import { ResultCard } from "./ResultCard";
 import { TickNumber } from "./TickNumber";
 import { SessionControl } from "./SessionControl";
 import { useSession } from "./useSession";
+import { useBroadcast } from "./useCopy";
+import { COPY_DEPLOYED } from "../lib/copy";
+import type { TapWindow } from "../lib/ec";
 import { HowItWorksModal } from "../HowItWorksModal";
 
 const fmtPx = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -59,7 +62,28 @@ export const TapView: React.FC = () => {
   const { connect, connectors } = useConnect();
   const { switchChainAsync } = useSwitchChain();
   const [busy, setBusy] = useState<Side | null>(null);
-  const [lastTx, setLastTx] = useState<{ side: Side; hash: string; filled: bigint; avg: number } | null>(null);
+  const [lastTx, setLastTx] = useState<{ side: Side; hash: string; filled: bigint; avg: number; w: TapWindow; limitYesPrice: bigint; broadcast?: { hash: string; block: bigint | null } } | null>(null);
+  const { broadcast, pending: broadcasting } = useBroadcast();
+
+  const onBroadcast = async () => {
+    if (!lastTx) return;
+    const id = toast.loading("Broadcasting to followers…");
+    try {
+      const r = await broadcast(lastTx.w, lastTx.side, lastTx.filled, lastTx.limitYesPrice);
+      setLastTx({ ...lastTx, broadcast: r });
+      toast.success(
+        <span>
+          Broadcast landed{r.block !== null ? ` in block ${r.block}` : ""} — followers mirrored in the same block.{" "}
+          <a href={`${EXPLORER_URL}/block/${r.block ?? ""}`} target="_blank" rel="noreferrer" className="underline text-accent-soft">
+            block ↗
+          </a>
+        </span>,
+        { id, duration: 9000 },
+      );
+    } catch (e) {
+      toast.error(errText(e), { id });
+    }
+  };
 
   const available = cadences(windows, asset);
   const spotPx = spot?.price ?? null;
@@ -120,7 +144,7 @@ export const TapView: React.FC = () => {
           avgPrice: r.avgPrice,
           hash: r.hash,
         });
-        setLastTx({ side, hash: r.hash, filled: r.filled, avg: r.avgPrice });
+        setLastTx({ side, hash: r.hash, filled: r.filled, avg: r.avgPrice, w, limitYesPrice: q.limitYesPrice });
       } else {
         toast(
           <span>
@@ -327,13 +351,26 @@ export const TapView: React.FC = () => {
               </div>
             ) : null}
             {lastTx ? (
-              <div className="flex items-center justify-between text-bn-text-dim border-t border-white/5 pt-2">
-                <span>
-                  last tap: <span className={lastTx.side === "UP" ? "text-up font-bold" : "text-down font-bold"}>{lastTx.side}</span> {fmtUsdc(lastTx.filled)} @ {fmtProb(lastTx.avg)}
-                </span>
-                <a href={txUrl(lastTx.hash)} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-accent-soft hover:underline font-mono">
-                  {short(lastTx.hash, 5)} <ExternalLink size={12} />
-                </a>
+              <div className="flex flex-col gap-1.5 border-t border-white/5 pt-2">
+                <div className="flex items-center justify-between text-bn-text-dim">
+                  <span>
+                    last tap: <span className={lastTx.side === "UP" ? "text-up font-bold" : "text-down font-bold"}>{lastTx.side}</span> {fmtUsdc(lastTx.filled)} @ {fmtProb(lastTx.avg)}
+                  </span>
+                  <a href={txUrl(lastTx.hash)} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-accent-soft hover:underline font-mono">
+                    {short(lastTx.hash, 5)} <ExternalLink size={12} />
+                  </a>
+                </div>
+                {COPY_DEPLOYED && lastTx.filled > 0n ? (
+                  lastTx.broadcast ? (
+                    <a href={`${EXPLORER_URL}/block/${lastTx.broadcast.block ?? ""}`} target="_blank" rel="noreferrer" className="text-[11px] text-up font-bold flex items-center gap-1">
+                      ⚡ broadcast · followers mirrored in block {String(lastTx.broadcast.block ?? "…")} <ExternalLink size={11} />
+                    </a>
+                  ) : (
+                    <button onClick={onBroadcast} disabled={broadcasting} className="self-start text-[11px] font-bold px-2.5 py-1 rounded-lg bg-accent/20 text-accent-soft hover:bg-accent hover:text-white disabled:opacity-50">
+                      {broadcasting ? "broadcasting…" : "⚡ Broadcast to followers (same-block mirror)"}
+                    </button>
+                  )
+                ) : null}
               </div>
             ) : null}
             <div className="flex items-center justify-between text-[10px] text-bn-text-muted border-t border-white/5 pt-2">
