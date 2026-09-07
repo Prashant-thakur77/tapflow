@@ -243,9 +243,8 @@ export const TapView: React.FC = () => {
 
           <SettledStrip asset={asset} intervalSec={w?.intervalSec ?? intervalSec} />
 
-          <TopPositions w={w} me={address} />
-
-          <div className="hidden xl:block">
+          <div className="hidden xl:flex xl:flex-col gap-3">
+            <TopPositions w={w} me={address} />
             <LiveTape w={w} me={address} />
           </div>
         </div>
@@ -354,7 +353,8 @@ export const TapView: React.FC = () => {
 
           {w ? <ProDrawer w={w} book={quotes.book} grid={quotes.grid} quote={quotes.up ?? quotes.down} side={quotes.up ? "UP" : "DOWN"} stake={stake} /> : null}
 
-          <div className="xl:hidden">
+          <div className="xl:hidden flex flex-col gap-3">
+            <TopPositions w={w} me={address} />
             <LiveTape w={w} me={address} />
           </div>
         </div>
