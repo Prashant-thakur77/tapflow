@@ -63,7 +63,11 @@ REST `https://stg.api.dreamdex.io/v0` · indexer `https://dev.smk.somnia.host/v1
 | **Reactive follower mirror, same block 482312219** — `MirrorVault` placed 8.26 shares for the follower, cost 0.99 | [`0xa8c248…9c4eb`](https://shannon-explorer.somnia.network/tx/0xa8c248f8b693206b0bfd24296b5a7012027df625a9f8d893bbb5ce41fe39c4eb) |
 | Follower deposit into `MirrorVault` (20 tUSDC) | [`0x398723…87362`](https://shannon-explorer.somnia.network/tx/0x398723f32e1239272f6f67f39040ac6f8a587427f3ef33a595eb0bbc22c87362) |
 | Follower `setFollow(leader, 1×, maxLoss 20)` | [`0xa4b76a…1ae25`](https://shannon-explorer.somnia.network/tx/0xa4b76a9e3d0af6a03e379ecc4c012bcc5fb350b6c0197dc4fa7b64391b71ae25) |
-| `CopyHandler.subscribe` → reactivity subscription **16760441** | [`0xefe548…6590f`](https://shannon-explorer.somnia.network/tx/0xefe54896def9cc47815053b93bab2d0a83d37a26c6b65229893309ae9b36590f) |
+| `CopyHandler.subscribe` (v1) → reactivity subscription 16760441 | [`0xefe548…6590f`](https://shannon-explorer.somnia.network/tx/0xefe54896def9cc47815053b93bab2d0a83d37a26c6b65229893309ae9b36590f) |
+| **v2, DOWN side:** leader DOWN tap — 1.02 shares @ 94% | [`0x140e56…8db9`](https://shannon-explorer.somnia.network/tx/0x140e569214edb3f18e101b75445bd3ef8b5d7524e9f03e5a26cfe43ff6998db9) |
+| v2 broadcast (block 482322170) | [`0xce0595…1a75`](https://shannon-explorer.somnia.network/tx/0xce0595bd700743d678796fc752e3703efb8e95d1ff36b51723256a707cfa1a75) |
+| **v2 reactive DOWN mirror, same block 482322170** — follower got 1.02 shares, escrow 0.99 (`(1 − price) × qty`) | [`0xc222f2…cefd`](https://shannon-explorer.somnia.network/tx/0xc222f2521a308473678ab0b755b79bd66a0d40e44724533e012b11220c4acefd) |
+| TapBot's own live tap (agent, ETH DOWN @ 91%) | [`0xf22d53…06e5`](https://shannon-explorer.somnia.network/tx/0xf22d532f83f89979f0cb0a3124c86e1755dca1a29d7a82562599b8fa6c1a06e5) |
 
 Reproduce the mirror yourself: `npx tsx scripts/mirror-demo.ts ETH 24h UP 1` (needs a funded key in `.env`). It taps, broadcasts, then reads the block for the `Mirrored` and `FollowerFilled` logs and prints the proof.
 
