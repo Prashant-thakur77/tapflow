@@ -32,9 +32,15 @@ export const VENUE_ID = (env("VENUE_ID") ??
 /** tUSDC collateral: 6 decimals. One whole contract = 1e6 raw units. */
 export const DECIMALS = 6;
 export const ONE = 10n ** BigInt(DECIMALS);
-/** Book grid on the testnet venue (measured; see dreamdex-bot-kit ec-core/config.ts). */
+/**
+ * Book grid fallback. The live venue reports tick = lot = minQuantity = 1000
+ * (0.001 share) as of Sep 2026 — the bot kit's July note of "no lot constraint"
+ * is stale. `readGrid()` in tap.ts reads the real values per pool; these are
+ * only the defaults before that read lands.
+ */
 export const TICK = 1_000n; // 0.001 probability
-export const LOT = 1n;
+export const LOT = 1_000n; // 0.001 share
+export const MIN_QTY = 1_000n;
 
 export const ADDRESSES = SOMNIA_TESTNET_ADDRESSES;
 /** TestUSDC (6 dp, public `faucet(uint256)`). */

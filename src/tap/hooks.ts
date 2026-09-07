@@ -15,6 +15,7 @@ import {
   pickWindow,
   progress,
   quoteFromBook,
+  readGrid,
   secondsLeft,
   toRaw,
   windowPosition,
@@ -111,19 +112,27 @@ export function useTapQuotes(w: TapWindow | undefined, stake: number) {
     queryFn: () => getClient().getBinaryOrderBook(w!.pool, { depth: 10 }),
     refetchInterval: 3_000,
   });
+  // The pool's tick/lot/min grid: an off-grid quantity reverts on-chain.
+  const gridQ = useQuery({
+    queryKey: ["grid", w?.pool],
+    enabled: !!w,
+    queryFn: () => readGrid(getClient(), w!.pool),
+    staleTime: 10 * 60_000,
+  });
   const stakeRaw = toRaw(stake);
   return useMemo(() => {
     const liveHas = live.yesAsks.length + live.noAsks.length > 0;
     const book = liveHas ? live : polled.data;
     const has = !!book && book.yesAsks.length + book.noAsks.length > 0;
+    const grid = gridQ.data;
     return {
       hasBook: has,
       source: liveHas ? ("live" as const) : polled.data ? ("poll" as const) : ("none" as const),
       watch: String(watch),
-      up: has ? quoteFromBook(book!, "UP", stakeRaw) : null,
-      down: has ? quoteFromBook(book!, "DOWN", stakeRaw) : null,
+      up: has ? quoteFromBook(book!, "UP", stakeRaw, { grid }) : null,
+      down: has ? quoteFromBook(book!, "DOWN", stakeRaw, { grid }) : null,
     };
-  }, [live, polled.data, stakeRaw, watch]);
+  }, [live, polled.data, stakeRaw, watch, gridQ.data]);
 }
 
 export function useWindowPosition(w: TapWindow | undefined) {

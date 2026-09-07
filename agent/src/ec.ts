@@ -20,8 +20,11 @@ import { config } from "./config.js";
 
 export const DECIMALS = 6;
 export const ONE = 10n ** BigInt(DECIMALS);
+// Live venue grid (Sep 2026): tick = lot = minQuantity = 1000. An off-grid
+// quantity reverts with InvalidQuantity(qty, lot).
 export const TICK = 1_000n;
-export const LOT = 1n;
+export const LOT = 1_000n;
+export const MIN_QTY = 1_000n;
 export const COLLATERAL: Address = SOMNIA_TESTNET_ADDRESSES.testUsdc ?? "0x70a86D8842FB63C4Ad2b7cdddF530eBf1BB25d8E";
 
 export const somniaShannon = defineChain({
@@ -151,8 +154,8 @@ function walkAsks(levels: readonly { price: bigint; quantity: bigint }[], qty: b
 }
 
 export function quoteFromBook(book: BinaryOrderBook, side: Side, stake: bigint): TapQuote | null {
-  const q = quoteBinaryStakeOverBook(book, sideToBuy(side), stake, ONE, { tickSize: TICK, lotSize: LOT, slippageBps: 300n, slippageMinTicks: 10n });
-  if (!q || q.quantity <= 0n) return null;
+  const q = quoteBinaryStakeOverBook(book, sideToBuy(side), stake, ONE, { tickSize: TICK, lotSize: LOT, minQuantity: MIN_QTY, slippageBps: 300n, slippageMinTicks: 10n });
+  if (!q || q.quantity < MIN_QTY) return null;
   const asks = side === "UP" ? book.yesAsks : book.noAsks;
   const cost = walkAsks(asks, q.quantity);
   const best = asks[0]?.price;

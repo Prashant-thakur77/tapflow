@@ -13,12 +13,42 @@ import {
   type SomniaMarkets,
   type SomniaMarketsClient,
 } from "@somnia-chain/markets-sdk";
-import type { Hex } from "viem";
-import { LOT, ONE, TICK } from "./config";
+import type { Address, Hex } from "viem";
+import { LOT, MIN_QTY, ONE, TICK } from "./config";
 import { assertTxOk } from "./exchange";
 import { MARKET_STATUS, refreshStatus, type TapWindow } from "./markets";
 
 export type Side = "UP" | "DOWN";
+
+/** A pool's order grid. Quantities must be lot multiples ≥ minQuantity, prices tick multiples. */
+export interface Grid {
+  tickSize: bigint;
+  lotSize: bigint;
+  minQuantity: bigint;
+}
+
+export const DEFAULT_GRID: Grid = { tickSize: TICK, lotSize: LOT, minQuantity: MIN_QTY };
+
+const gridCache = new Map<string, Grid>();
+
+/**
+ * Read a pool's tick / lot / minQuantity from chain (cached per pool). Sending
+ * a quantity off the lot grid reverts with `InvalidQuantity(qty, lot)`, so
+ * every quote goes through this rather than a constant.
+ */
+export async function readGrid(client: SomniaMarketsClient, pool: Address): Promise<Grid> {
+  const key = pool.toLowerCase();
+  const hit = gridCache.get(key);
+  if (hit) return hit;
+  try {
+    const p = await client.getBinaryBookParams(pool);
+    const g: Grid = { tickSize: p.tickSize, lotSize: p.lotSize, minQuantity: p.minQuantity };
+    gridCache.set(key, g);
+    return g;
+  } catch {
+    return DEFAULT_GRID;
+  }
+}
 
 export interface TapQuote {
   side: Side;
@@ -91,8 +121,11 @@ export async function quoteTap(
   stake: bigint,
   opts: { slippageBps?: bigint; depth?: number } = {},
 ): Promise<TapQuote | null> {
-  const book = await client.getBinaryOrderBook(w.pool, { depth: opts.depth ?? 10 });
-  return quoteFromBook(book, side, stake, opts);
+  const [book, grid] = await Promise.all([
+    client.getBinaryOrderBook(w.pool, { depth: opts.depth ?? 10 }),
+    readGrid(client, w.pool),
+  ]);
+  return quoteFromBook(book, side, stake, { ...opts, grid });
 }
 
 /** Pure: size a tap against a book snapshot (the live-store book in the UI). */
@@ -100,15 +133,17 @@ export function quoteFromBook(
   book: BinaryOrderBook,
   side: Side,
   stake: bigint,
-  opts: { slippageBps?: bigint } = {},
+  opts: { slippageBps?: bigint; grid?: Grid } = {},
 ): TapQuote | null {
+  const grid = opts.grid ?? DEFAULT_GRID;
   const q = quoteBinaryStakeOverBook(book, sideToBuy(side), stake, ONE, {
-    tickSize: TICK,
-    lotSize: LOT,
+    tickSize: grid.tickSize,
+    lotSize: grid.lotSize,
+    minQuantity: grid.minQuantity,
     slippageBps: opts.slippageBps ?? 300n,
     slippageMinTicks: 10n,
   });
-  if (!q || q.quantity <= 0n) return null;
+  if (!q || q.quantity <= 0n || q.quantity < grid.minQuantity) return null;
   const asks = side === "UP" ? book.yesAsks : book.noAsks;
   const { cost } = walkAsks(asks, q.quantity);
   const best = asks[0]?.price;
