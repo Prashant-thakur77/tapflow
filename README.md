@@ -1,5 +1,7 @@
 # TapFlow ⚡
 
+[![ci](https://github.com/Prashant-thakur77/tapflow/actions/workflows/ci.yml/badge.svg)](https://github.com/Prashant-thakur77/tapflow/actions/workflows/ci.yml) [![live](https://img.shields.io/badge/live-tapflow--phi.vercel.app-0847F7)](https://tapflow-phi.vercel.app) [![chain](https://img.shields.io/badge/Somnia%20Shannon-50312-2ebd85)](https://shannon-explorer.somnia.network)
+
 **One tap on the next five minutes. Follow the best tappers. Their taps mirror into yours in the same block.**
 
 TapFlow turns every live DreamDEX Event Contract into a one-tap UP/DOWN game, lets you copy the top tappers block-for-block through Somnia on-chain reactivity, and never shows a wallet popup after login. Built for the Somnia × DreamDEX Event Contracts hackathon.
