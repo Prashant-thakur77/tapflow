@@ -9,7 +9,7 @@
 **Track:** Open Track
 
 **Links**
-- GitHub: https://github.com/Prashant-thakur77/tapflow  ← push before submitting
+- GitHub: https://github.com/Prashant-thakur77/tapflow (public)
 - Live app: https://tapflow-phi.vercel.app
 - Demo video: `<upload link>`
 - Same-block proof on the explorer: https://shannon-explorer.somnia.network/block/482322170

@@ -14,7 +14,7 @@ TapFlow turns every live DreamDEX Event Contract into a one-tap UP/DOWN game, le
 
 - **Live app:** https://tapflow-phi.vercel.app · **Proof page (live, from chain):** https://tapflow-phi.vercel.app/proof · **Markets grid:** https://tapflow-phi.vercel.app/markets
 - **Same-block mirror, on the explorer:** [block 482312219](https://shannon-explorer.somnia.network/block/482312219) (UP) and [block 482322170](https://shannon-explorer.somnia.network/block/482322170) (DOWN) — leader broadcast and follower's reactive order, one block. The indexer has paired **6 of 6** mirrors with their broadcast in the same block, including three placed autonomously by TapBot.
-- **Demo video:** `<narrated link>` · silent walkthrough: [`docs/media/tapflow-demo-silent.mp4`](docs/media/tapflow-demo-silent.mp4) · **Telegram bot:** `<t.me/your_bot>`
+- **Code:** https://github.com/Prashant-thakur77/tapflow · **Demo video:** [`docs/media/tapflow-demo-silent.mp4`](docs/media/tapflow-demo-silent.mp4) (silent walkthrough; narrated cut linked on DoraHacks) · **Telegram bot:** source in [`tg-bot/`](tg-bot/), runs with your own `BOT_TOKEN`
 - Every number in the app is read live from Somnia Shannon. Nothing in the demo path is mocked.
 
 **Judges, the two-minute path:** open the [app](https://tapflow-phi.vercel.app/tap) → Connect (MetaMask, Somnia Shannon 50312, STT from the [faucet](https://testnet.somnia.network/)) → "Get tUSDC" in the header (on-chain faucet mint) → **Start one-tap session** (two signatures, then none) → press **↑** or **↓** → watch the fill on the explorer. Then open [Leaders](https://tapflow-phi.vercel.app/leaders), follow **TapBot** with 5 tUSDC, and the [Proof](https://tapflow-phi.vercel.app/proof) page shows your mirror in TapBot's block when it next taps.
