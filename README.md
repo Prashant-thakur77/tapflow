@@ -17,6 +17,8 @@ TapFlow turns every live DreamDEX Event Contract into a one-tap UP/DOWN game, le
 - **Demo video:** `<narrated link>` · silent walkthrough: [`docs/media/tapflow-demo-silent.mp4`](docs/media/tapflow-demo-silent.mp4) · **Telegram bot:** `<t.me/your_bot>`
 - Every number in the app is read live from Somnia Shannon. Nothing in the demo path is mocked.
 
+**Judges, the two-minute path:** open the [app](https://tapflow-phi.vercel.app/tap) → Connect (MetaMask, Somnia Shannon 50312, STT from the [faucet](https://testnet.somnia.network/)) → "Get tUSDC" in the header (on-chain faucet mint) → **Start one-tap session** (two signatures, then none) → press **↑** or **↓** → watch the fill on the explorer. Then open [Leaders](https://tapflow-phi.vercel.app/leaders), follow **TapBot** with 5 tUSDC, and the [Proof](https://tapflow-phi.vercel.app/proof) page shows your mirror in TapBot's block when it next taps.
+
 ---
 
 ## The problem → the product

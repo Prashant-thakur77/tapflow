@@ -16,7 +16,7 @@ const NODES = [
 export const SameBlockDiagram: React.FC<{ block?: string | number; compact?: boolean }> = ({ block, compact }) => {
   const W = 860;
   const H = compact ? 120 : 150;
-  const x0 = 40;
+  const x0 = 80;
   const gap = (W - 2 * x0) / (NODES.length - 1);
   const y = compact ? 52 : 66;
   const pathD = `M${x0},${y} L${W - x0},${y}`;
