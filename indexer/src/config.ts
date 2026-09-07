@@ -19,3 +19,6 @@ export const APP_URL = process.env.APP_URL ?? "https://tapflow.vercel.app";
 
 /** tUSDC: 6 decimals. */
 export const ONE = 1_000_000;
+
+/** MirrorVault addresses (v2, v1): their taps are followers' mirrored orders, not a tapper. */
+export const VAULT_ADDRESSES = (process.env.VAULT_ADDRESSES ?? "0x4d5F238420452D360D98AF0fA08A33048964a5A5,0xF5fc089748604722ADa350599a8afBAFb0A6aB0A").toLowerCase().split(",");

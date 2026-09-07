@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { AGENT_ADDRESS, AGENT_LABEL, DB_PATH } from "./config.js";
+import { AGENT_ADDRESS, AGENT_LABEL, DB_PATH, VAULT_ADDRESSES } from "./config.js";
 
 export type Side = "UP" | "DOWN";
 export type Result = "win" | "loss" | "void";
@@ -279,7 +279,7 @@ function aggregate(taps: TapAgg[], followers: Map<string, number>, copies: Map<s
       followers: followers.get(address) ?? 0,
       copies: copies.get(address) ?? 0,
       isAgent: !!AGENT_ADDRESS && address === AGENT_ADDRESS,
-      ...(AGENT_ADDRESS && address === AGENT_ADDRESS ? { label: AGENT_LABEL } : {}),
+      ...(AGENT_ADDRESS && address === AGENT_ADDRESS ? { label: AGENT_LABEL } : VAULT_ADDRESSES.includes(address) ? { label: "MirrorVault · followers" } : {}),
     });
   }
   // rank: pnl, then win rate, then volume
