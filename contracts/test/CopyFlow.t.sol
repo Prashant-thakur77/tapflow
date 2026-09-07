@@ -9,6 +9,7 @@ import {RiskGuard} from "../src/RiskGuard.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 import {MockBinaryPool} from "./mocks/MockBinaryPool.sol";
 import {MockPrecompile} from "./mocks/MockPrecompile.sol";
+import {MockModule, MockOutcomeToken} from "./mocks/MockSettlement.sol";
 
 contract CopyFlowTest is Test {
     address constant PRECOMPILE = address(0x0100);
@@ -20,6 +21,8 @@ contract CopyFlowTest is Test {
     RiskGuard riskGuard;
     MockERC20 usdc;
     MockBinaryPool pool;
+    MockOutcomeToken outcome;
+    MockModule module;
 
     address leader = address(0xBEEF);
     address alice = address(0xA11CE);
@@ -35,6 +38,15 @@ contract CopyFlowTest is Test {
         copyHandler = new CopyHandler(vault, address(router));
         riskGuard = new RiskGuard(vault);
         vault.setWiring(address(copyHandler), address(riskGuard));
+
+        // Settlement: the pool credits ERC-6909 ids on fill; the module redeems them 1:1.
+        outcome = new MockOutcomeToken();
+        module = new MockModule(address(usdc), address(outcome));
+        pool.setOutcome(address(outcome), 1, 2);
+        module.setMarket(marketId, 1, 2);
+        usdc.mint(address(module), 1_000 * ONE);
+        vault.setVenue(address(module), 2, bytes32(uint256(0x679795)));
+        vault.approveOutcomeToken(address(outcome));
 
         // Followers fund the vault.
         usdc.mint(alice, 100 * ONE);
@@ -187,5 +199,58 @@ contract CopyFlowTest is Test {
         returns (address l, uint32 r, uint256 ml, uint256 dep, uint256 spent, bool active)
     {
         return vault.follows(who);
+    }
+
+    // ── settlement ───────────────────────────────────────────────────────────
+
+    function test_redeem_credits_follower_after_win() public {
+        // Alice mirrors 10 UP @ 0.60 (cost 6). UP wins → 10 tUSDC back into her deposit.
+        _firePositionOpened(0, 10 * ONE, 600_000, uint64(block.timestamp + 300) * 1e9);
+        assertEq(vault.shares(alice, marketId, 0), 10 * ONE, "shares recorded");
+        assertEq(outcome.balanceOf(address(vault), 1), 15 * ONE, "vault holds alice 10 + bob 5 YES");
+        assertEq(vault.available(alice), 44 * ONE, "50 deposited - 6 escrow");
+
+        module.resolve(marketId, 0);
+        uint256 payout = vault.redeem(alice, marketId, 0, 0);
+        assertEq(payout, 10 * ONE, "1 tUSDC per winning share");
+        assertEq(vault.available(alice), 54 * ONE, "payout credited to the deposit");
+        assertEq(vault.shares(alice, marketId, 0), 0, "shares consumed");
+        assertEq(outcome.balanceOf(address(vault), 1), 5 * ONE, "bob's shares untouched");
+
+        // and it is withdrawable at once
+        vm.prank(alice);
+        vault.withdraw(54 * ONE);
+        assertEq(usdc.balanceOf(alice), 104 * ONE, "100 - 50 + 54");
+    }
+
+    function test_redeem_many_and_partial() public {
+        bytes32 m2 = bytes32(uint256(0x121e2));
+        module.setMarket(m2, 3, 4);
+        _firePositionOpened(0, 10 * ONE, 600_000, uint64(block.timestamp + 300) * 1e9); // marketId, alice 10 YES(id 1)
+        module.resolve(marketId, 0);
+        // partial: 4 of 10
+        assertEq(vault.redeem(alice, marketId, 0, 4 * ONE), 4 * ONE);
+        assertEq(vault.shares(alice, marketId, 0), 6 * ONE);
+        bytes32[] memory ids = new bytes32[](1);
+        uint8[] memory idx = new uint8[](1);
+        ids[0] = marketId;
+        idx[0] = 0;
+        assertEq(vault.redeemMany(alice, ids, idx), 6 * ONE, "rest via redeemMany");
+        assertEq(vault.available(alice), 54 * ONE);
+    }
+
+    function test_redeem_losing_side_reverts_and_changes_nothing() public {
+        _firePositionOpened(0, 10 * ONE, 600_000, uint64(block.timestamp + 300) * 1e9);
+        module.resolve(marketId, 1); // DOWN won
+        vm.expectRevert(bytes("losing side"));
+        vault.redeem(alice, marketId, 0, 0);
+        assertEq(vault.shares(alice, marketId, 0), 10 * ONE, "shares intact");
+        assertEq(vault.available(alice), 44 * ONE);
+    }
+
+    function test_redeem_requires_shares() public {
+        module.resolve(marketId, 0);
+        vm.expectRevert(MirrorVault.NoShares.selector);
+        vault.redeem(alice, marketId, 0, 0);
     }
 }

@@ -62,14 +62,21 @@ It prints the subscription ids and writes `deployments.json` (addresses + ids),
 which the web app and indexer read. Put `router` into the agent's `ROUTER_ADDRESS`
 and the app's `VITE_ROUTER_ADDRESS` to light up the in-block mirror.
 
-## Deployed on Shannon (7 Sep 2026)
+## Deployed on Shannon (v3, 8 Sep 2026)
 
 | Contract | Address |
 |---|---|
 | Router | `0x512009743f48A924F679907ca9E206b706d499Cc` |
-| MirrorVault v2 | `0x4d5F238420452D360D98AF0fA08A33048964a5A5` |
-| CopyHandler v2 | `0x2Fff45dFE73aE60f4Fd24fE25B7C93482DBeF43d` — subscription **16764091**, funded 33 STT |
-| RiskGuard v2 | `0x8E6Fe05FF5bA01bC5f76e3169Ef9b65B9B0e67D4` — wired; subscription pending 32 STT |
+| MirrorVault v3 | `0x1a9c46409a34511e05E0552618b81C818D5f0C12` — per-follower shares, `redeem`/`redeemMany` via the module |
+| CopyHandler v3 | `0x515d5186314Ac4956F08D11B5Aab55Cd5169920d` — subscription **16791404**, funded 33 STT |
+| RiskGuard v3 | `0xA8a1FD962f1470c7b19D55fa740E00463a9B4b99` — wired; subscription pending 32 STT |
+
+v3 adds settlement for followers: `setVenue(module, operatorId, venueId)` and
+`approveOutcomeToken(outcomeToken)` (ERC-6909 `setOperator` for the module) are
+called once by the owner; then anyone can call `redeem(follower, marketId,
+outcomeIdx, amount)` on a settled window and the payout lands in the follower's
+withdrawable deposit. Deploying the v3 vault needs `--gas-limit 60000000`
+(it ran out at 20M). v2 (`0x4d5F…`, `0x2Fff…` sub 16764091, `0x8E6F…`) retired.
 
 v1 (`MirrorVault 0xF5fc…`, `CopyHandler 0x63Ed…`, sub 16760441) is retired: it escrowed
 `price × qty` for DOWN mirrors instead of `(1 − price) × qty`. Fixed in
@@ -91,14 +98,17 @@ The sequence that works:
 
 ```bash
 set -a; source ../.env; set +a
-forge create src/Router.sol:Router          --rpc-url shannon --private-key $PRIVATE_KEY --broadcast --gas-limit 20000000
-forge create src/MirrorVault.sol:MirrorVault --rpc-url shannon --private-key $PRIVATE_KEY --broadcast --gas-limit 20000000 --constructor-args 0x70a86D8842FB63C4Ad2b7cdddF530eBf1BB25d8E
-forge create src/CopyHandler.sol:CopyHandler --rpc-url shannon --private-key $PRIVATE_KEY --broadcast --gas-limit 20000000 --constructor-args <vault> <router>
-forge create src/RiskGuard.sol:RiskGuard     --rpc-url shannon --private-key $PRIVATE_KEY --broadcast --gas-limit 20000000 --constructor-args <vault>
+forge create src/Router.sol:Router          --rpc-url shannon --private-key $PRIVATE_KEY --broadcast --gas-limit 60000000
+forge create src/MirrorVault.sol:MirrorVault --rpc-url shannon --private-key $PRIVATE_KEY --broadcast --gas-limit 60000000 --constructor-args 0x70a86D8842FB63C4Ad2b7cdddF530eBf1BB25d8E
+forge create src/CopyHandler.sol:CopyHandler --rpc-url shannon --private-key $PRIVATE_KEY --broadcast --gas-limit 60000000 --constructor-args <vault> <router>
+forge create src/RiskGuard.sol:RiskGuard     --rpc-url shannon --private-key $PRIVATE_KEY --broadcast --gas-limit 60000000 --constructor-args <vault>
 # wiring, funding and subscribe: let the node estimate gas (it knows Somnia's pricing)
 cast send <vault> "setWiring(address,address)" <copyHandler> <riskGuard> --rpc-url shannon --private-key $PRIVATE_KEY
 cast send <copyHandler> --value 33ether --rpc-url shannon --private-key $PRIVATE_KEY
 cast send <copyHandler> "subscribe(uint64)" 0 --rpc-url shannon --private-key $PRIVATE_KEY
+# v3 settlement wiring (module + operatorId + venueId from MarketCreated; outcome token from getBinaryPoolParams)
+cast send <vault> "setVenue(address,uint32,bytes32)" 0x3ecC694Cef705358864a646142ac17A90E29e388 2 0x679795a0195a1b76cdebb7c51d74e058aee92919b8c3389af86ef24535e8a28c --rpc-url shannon --private-key $PRIVATE_KEY
+cast send <vault> "approveOutcomeToken(address)" 0xB52c5934113Af5c0Bb20eb3C72290C8215f755b9 --rpc-url shannon --private-key $PRIVATE_KEY
 cast call <copyHandler> "subscriptionId()(uint256)" --rpc-url shannon
 ```
 

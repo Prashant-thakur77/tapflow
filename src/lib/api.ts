@@ -100,6 +100,17 @@ export const getFeed = (limit = 30) => get<FeedItem[]>(`/api/feed?limit=${limit}
 export const getLeader = (address: string) => get<Leader & { recent: unknown[] }>(`/api/leader/${address}`);
 export const getRecent = (limit = 30) => get<RecentFill[]>(`/api/recent?limit=${limit}`);
 export const getSettled = (asset = "", intervalSec = 0, limit = 12) => get<SettledWindow[]>(`/api/settled?asset=${asset}&intervalSec=${intervalSec}&limit=${limit}`);
+export interface FollowerClaimable {
+  marketId: string;
+  outcomeIdx: 0 | 1;
+  shares: number;
+  estPayoutUsdc: number;
+  result: "UP" | "DOWN" | "VOID";
+  asset: string | null;
+  intervalSec: number | null;
+  expiry: number | null;
+}
+export const getFollowerClaimables = (address: string) => get<FollowerClaimable[]>(`/api/follower/${address}/claimable`);
 export const getMarketPositions = (marketId: string) => get<MarketPositions>(`/api/market/${marketId}/positions`);
 
 export async function follow(followerAddr: string, leaderAddr: string): Promise<void> {

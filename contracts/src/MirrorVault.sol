@@ -2,6 +2,7 @@
 pragma solidity 0.8.30;
 
 import {IBinaryPool, IERC20Min} from "./interfaces/IBinaryPool.sol";
+import {IBinaryMarketsModule, IOutcomeToken6909} from "./interfaces/ISettlement.sol";
 
 /// @title MirrorVault — follower custody + copy config for TapFlow
 /// @notice A follower deposits tUSDC, names a leader, a mirror ratio, and a max
@@ -38,6 +39,17 @@ contract MirrorVault {
     mapping(address => address[]) internal _followers; // leader => followers
     mapping(address => mapping(address => bool)) internal _isFollower; // leader => follower => in list
 
+    // ── settlement ───────────────────────────────────────────────────────────
+    // The vault is the pool caller, so every mirrored fill's outcome tokens are
+    // credited to the vault. Per-follower shares are tracked here so a follower
+    // can redeem their own winnings after the window settles: the module pulls
+    // the vault's winning tokens and pays collateral back, which is credited to
+    // the follower's deposit (and is withdrawable at once).
+    IBinaryMarketsModule public module; // BinaryMarketsModule (module-routed redeem)
+    uint32 public operatorId;
+    bytes32 public venueId;
+    mapping(address => mapping(bytes32 => uint256[2])) internal _shares; // follower => marketId => [yes, no]
+
     event Deposited(address indexed follower, uint256 amount, uint256 balance);
     event Withdrawn(address indexed follower, uint256 amount);
     event FollowSet(address indexed follower, address indexed leader, uint256 ratioBps, uint256 maxLoss);
@@ -54,10 +66,14 @@ contract MirrorVault {
     );
     event FollowerPaused(address indexed follower, address indexed leader, uint256 spent, uint256 maxLoss);
     event WiringSet(address copyHandler, address riskGuard);
+    event VenueSet(address module, uint32 operatorId, bytes32 venueId);
+    event Redeemed(address indexed follower, bytes32 indexed marketId, uint8 outcomeIdx, uint256 amount, uint256 payout, uint256 balance);
 
     error NotOwner();
     error NotHandler();
     error NotGuard();
+    error NoVenue();
+    error NoShares();
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert NotOwner();
@@ -159,8 +175,55 @@ contract MirrorVault {
             return 0;
         }
         f.spent += cost;
+        _shares[follower][marketId][side] += qty;
         emit FollowerFilled(follower, f.leader, marketId, side, qty, cost, f.spent, f.maxLoss);
         return qty;
+    }
+
+    // ── settlement path (anyone, credits the follower) ───────────────────────
+
+    /// @notice Set the venue the vault redeems through. `module` is the
+    ///         BinaryMarketsModule; `operatorId`/`venueId` come from MarketCreated.
+    function setVenue(address module_, uint32 operatorId_, bytes32 venueId_) external onlyOwner {
+        module = IBinaryMarketsModule(module_);
+        operatorId = operatorId_;
+        venueId = venueId_;
+        emit VenueSet(module_, operatorId_, venueId_);
+    }
+
+    /// @notice Let the module pull this vault's outcome tokens (ERC-6909 operator
+    ///         approval on the singleton outcome token). One call per token.
+    function approveOutcomeToken(address outcomeToken) external onlyOwner {
+        require(IOutcomeToken6909(outcomeToken).setOperator(address(module), true), "setOperator");
+    }
+
+    /// @notice Redeem `follower`'s winning shares on a settled window and credit
+    ///         the payout to their deposit. Anyone may call (the payout can only
+    ///         go to the follower). `amount` 0 = all of their shares on that side.
+    /// @dev The module reverts if the market is not settled or the side did not
+    ///      win (a losing side pays nothing and burns nothing), so a wrong call
+    ///      costs gas and changes nothing. IOC mirrors can partially fill; if the
+    ///      vault holds fewer tokens than recorded, pass the smaller `amount`.
+    function redeem(address follower, bytes32 marketId, uint8 outcomeIdx, uint256 amount) public returns (uint256 payout) {
+        if (address(module) == address(0)) revert NoVenue();
+        uint256 held = _shares[follower][marketId][outcomeIdx];
+        if (amount == 0) amount = held;
+        if (amount == 0 || amount > held) revert NoShares();
+        uint256 before = collateral.balanceOf(address(this));
+        module.redeem(operatorId, venueId, marketId, outcomeIdx, amount);
+        payout = collateral.balanceOf(address(this)) - before;
+        _shares[follower][marketId][outcomeIdx] = held - amount;
+        Follow storage f = follows[follower];
+        f.deposited += payout;
+        emit Redeemed(follower, marketId, outcomeIdx, amount, payout, available(follower));
+    }
+
+    /// @notice Redeem several settled windows for one follower in one transaction.
+    function redeemMany(address follower, bytes32[] calldata marketIds, uint8[] calldata outcomeIdxs) external returns (uint256 total) {
+        require(marketIds.length == outcomeIdxs.length, "len");
+        for (uint256 i = 0; i < marketIds.length; i++) {
+            total += redeem(follower, marketIds[i], outcomeIdxs[i], 0);
+        }
     }
 
     // ── risk path (RiskGuard only) ───────────────────────────────────────────
@@ -184,6 +247,11 @@ contract MirrorVault {
     function available(address follower) public view returns (uint256) {
         Follow storage f = follows[follower];
         return f.deposited > f.spent ? f.deposited - f.spent : 0;
+    }
+
+    /// @notice Outcome shares the vault holds on `follower`'s behalf for a window (0 = Up, 1 = Down).
+    function shares(address follower, bytes32 marketId, uint8 outcomeIdx) external view returns (uint256) {
+        return _shares[follower][marketId][outcomeIdx];
     }
 
     function followersOf(address leader) external view returns (address[] memory) {

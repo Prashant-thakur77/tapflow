@@ -32,6 +32,18 @@ export const MIRROR_VAULT_ABI = [
     outputs: [],
   },
   { type: "function", name: "clearFollow", stateMutability: "nonpayable", inputs: [], outputs: [] },
+  {
+    type: "function",
+    name: "redeemMany",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "follower", type: "address" },
+      { name: "marketIds", type: "bytes32[]" },
+      { name: "outcomeIdxs", type: "uint8[]" },
+    ],
+    outputs: [{ type: "uint256" }],
+  },
+  { type: "function", name: "shares", stateMutability: "view", inputs: [{ name: "follower", type: "address" }, { name: "marketId", type: "bytes32" }, { name: "outcomeIdx", type: "uint8" }], outputs: [{ type: "uint256" }] },
   { type: "function", name: "followerCount", stateMutability: "view", inputs: [{ name: "leader", type: "address" }], outputs: [{ type: "uint256" }] },
   { type: "function", name: "available", stateMutability: "view", inputs: [{ name: "follower", type: "address" }], outputs: [{ type: "uint256" }] },
   {

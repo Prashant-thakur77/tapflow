@@ -7,7 +7,7 @@
 // Somnia caps eth_getLogs at 1000 blocks per call, so this walks a cursor.
 
 import fs from "node:fs";
-import { createPublicClient, defineChain, http, parseAbiItem, type Hex } from "viem";
+import { createPublicClient, defineChain, http, parseAbi, parseAbiItem, type Hex } from "viem";
 import { CHAIN_ID, RPC_URL } from "./config.js";
 import { db, getMeta, setCopiesSource, setMeta } from "./db.js";
 
@@ -33,8 +33,8 @@ export const deployments = loadDeployments();
 setCopiesSource(() => copiesByLeader());
 
 /** Every CopyHandler that ever mirrored (v1 escrowed DOWN wrong; kept for the record). */
-const HANDLERS: Hex[] = [...new Set([deployments?.copyHandler, "0x63Ed0a4242FD11A9A9296F8D8bDCd39D2E90c9c1" as Hex].filter(Boolean) as Hex[])];
-const VAULTS: Hex[] = [...new Set([deployments?.mirrorVault, "0xF5fc089748604722ADa350599a8afBAFb0A6aB0A" as Hex].filter(Boolean) as Hex[])];
+const HANDLERS: Hex[] = [...new Set([deployments?.copyHandler, "0x2Fff45dFE73aE60f4Fd24fE25B7C93482DBeF43d" as Hex, "0x63Ed0a4242FD11A9A9296F8D8bDCd39D2E90c9c1" as Hex].filter(Boolean) as Hex[])];
+const VAULTS: Hex[] = [...new Set([deployments?.mirrorVault, "0x4d5F238420452D360D98AF0fA08A33048964a5A5" as Hex, "0xF5fc089748604722ADa350599a8afBAFb0A6aB0A" as Hex].filter(Boolean) as Hex[])];
 const START_BLOCK = Number(process.env.MIRRORS_START_BLOCK ?? 482_310_000);
 const CHUNK = 1000n;
 const MAX_CHUNKS_PER_SYNC = Number(process.env.MIRRORS_MAX_CHUNKS ?? 40);
@@ -43,6 +43,7 @@ const MIRRORED = parseAbiItem("event Mirrored(address indexed follower,address i
 const OPENED = parseAbiItem("event PositionOpened(address indexed leader,bytes32 indexed marketId,address pool,uint8 side,uint256 qty,uint256 price,uint64 expiryNs)");
 const FILLED = parseAbiItem("event FollowerFilled(address indexed follower,address indexed leader,bytes32 indexed marketId,uint8 side,uint256 qty,uint256 cost,uint256 spent,uint256 maxLoss)");
 
+import { client } from "./chain.js";
 const chain = defineChain({ id: CHAIN_ID, name: "Somnia Shannon", nativeCurrency: { name: "STT", symbol: "STT", decimals: 18 }, rpcUrls: { default: { http: [RPC_URL] } } });
 const pc = createPublicClient({ chain, transport: http(RPC_URL) });
 
@@ -68,6 +69,9 @@ const st = {
     LEFT JOIN broadcasts b ON b.block = m.block AND b.leader = m.leader AND b.marketId = m.marketId
     ORDER BY m.block DESC, m.id DESC LIMIT ?`),
   copies: db.prepare(`SELECT leader, COUNT(*) AS n FROM mirrors WHERE success = 1 GROUP BY leader`),
+  followerMarkets: db.prepare(`SELECT m.marketId, m.side, SUM(m.qty) AS qty, k.asset, k.intervalSec, k.expiry, k.result
+    FROM mirrors m LEFT JOIN markets k ON k.marketId = m.marketId
+    WHERE m.follower = ? AND m.success = 1 GROUP BY m.marketId, m.side ORDER BY k.expiry DESC LIMIT 60`),
   counts: db.prepare(`SELECT COUNT(*) AS mirrors, SUM(success) AS ok,
     SUM(CASE WHEN EXISTS (SELECT 1 FROM broadcasts b WHERE b.block = m.block AND b.leader = m.leader AND b.marketId = m.marketId) THEN 1 ELSE 0 END) AS sameBlock,
     COUNT(DISTINCT follower) AS followers, COUNT(DISTINCT leader) AS leaders FROM mirrors m`),
@@ -153,4 +157,51 @@ export function proofSummary() {
     leaders: c.leaders,
     latest: listMirrors(12),
   };
+}
+
+const VAULT_READ_ABI = parseAbi(["function shares(address follower, bytes32 marketId, uint8 outcomeIdx) view returns (uint256)"]);
+
+export interface FollowerClaimable {
+  marketId: string;
+  outcomeIdx: 0 | 1;
+  shares: number;
+  estPayoutUsdc: number;
+  result: "UP" | "DOWN" | "VOID";
+  asset: string | null;
+  intervalSec: number | null;
+  expiry: number | null;
+}
+
+/**
+ * Settled windows where the CURRENT MirrorVault still holds winning (or voided)
+ * shares for this follower: shares from the vault, results from chain.
+ */
+export async function followerClaimables(follower: string): Promise<FollowerClaimable[]> {
+  const vault = deployments?.mirrorVault;
+  if (!vault) return [];
+  const rows = st.followerMarkets.all(follower.toLowerCase()) as { marketId: string; side: "UP" | "DOWN"; qty: number; asset: string | null; intervalSec: number | null; expiry: number | null; result: string | null }[];
+  const out: FollowerClaimable[] = [];
+  await Promise.all(
+    rows.map(async (r) => {
+      try {
+        const outcomeIdx: 0 | 1 = r.side === "UP" ? 0 : 1;
+        const held = await pc.readContract({ address: vault, abi: VAULT_READ_ABI, functionName: "shares", args: [follower as Hex, r.marketId as Hex, outcomeIdx] });
+        if (held === 0n) return;
+        let result = r.result as "UP" | "DOWN" | "VOID" | null;
+        if (!result) {
+          const oc = await client.getMarketOnchain(r.marketId as Hex);
+          if (oc.isVoided) result = "VOID";
+          else if (oc.isResolved) result = oc.winningOutcome === 0 ? "UP" : "DOWN";
+          else return;
+        }
+        const wins = result === "VOID" || result === r.side;
+        if (!wins) return;
+        const shares = Number(held) / 1e6;
+        out.push({ marketId: r.marketId, outcomeIdx, shares, estPayoutUsdc: result === "VOID" ? shares / 2 : shares, result, asset: r.asset, intervalSec: r.intervalSec, expiry: r.expiry });
+      } catch {
+        /* skip */
+      }
+    }),
+  );
+  return out;
 }

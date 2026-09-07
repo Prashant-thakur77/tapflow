@@ -2,6 +2,7 @@
 pragma solidity 0.8.30;
 
 import {IERC20Min} from "../../src/interfaces/IBinaryPool.sol";
+import {MockOutcomeToken} from "./MockSettlement.sol";
 
 /// Minimal pool: an IOC buy pulls price*qty/1e6 collateral from the caller and
 /// "fills". `failNext` lets a test force a rejected order.
@@ -10,6 +11,9 @@ contract MockBinaryPool {
     IERC20Min public immutable collateral;
     uint128 public nextId = 1;
     bool public failNext;
+    MockOutcomeToken public token;
+    uint256 public yesId;
+    uint256 public noId;
 
     struct Order {
         address caller;
@@ -23,6 +27,13 @@ contract MockBinaryPool {
 
     constructor(address collateral_) {
         collateral = IERC20Min(collateral_);
+    }
+
+    /// Mint outcome tokens to the caller on fill, like the real pool credits ERC-6909 ids.
+    function setOutcome(address token_, uint256 yesId_, uint256 noId_) external {
+        token = MockOutcomeToken(token_);
+        yesId = yesId_;
+        noId = noId_;
     }
 
     function setFailNext(bool v) external {
@@ -53,6 +64,7 @@ contract MockBinaryPool {
         uint256 cost = (unit * quantity) / ONE;
         require(collateral.transferFrom(msg.sender, address(this), cost), "pull");
         orders.push(Order(msg.sender, kind, price, quantity, cost));
+        if (address(token) != address(0)) token.mint(msg.sender, kind == 2 ? noId : yesId, quantity);
         return (true, nextId++);
     }
 }

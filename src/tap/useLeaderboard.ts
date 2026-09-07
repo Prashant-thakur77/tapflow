@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { follow, getFeed, getLeaderboard, getMarketPositions, getProof, getRecent, getSettled, getStats } from "../lib/api";
+import { follow, getFeed, getFollowerClaimables, getLeaderboard, getMarketPositions, getProof, getRecent, getSettled, getStats } from "../lib/api";
 
 /** Latest fills across the venue — the live ticker. */
 export function useRecentFills(limit = 30) {
@@ -38,4 +38,8 @@ export function useFollow() {
 
 export function useProof() {
   return useQuery({ queryKey: ["tf-proof"], queryFn: getProof, refetchInterval: 15_000, retry: 1 });
+}
+
+export function useFollowerClaimables(address?: string) {
+  return useQuery({ queryKey: ["tf-follower-claimable", address], queryFn: () => getFollowerClaimables(address!), enabled: !!address, refetchInterval: 20_000, retry: 1 });
 }

@@ -1,21 +1,52 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { useWriteContract, usePublicClient } from "wagmi";
+import { useAccount, useWriteContract, usePublicClient } from "wagmi";
 import toast from "react-hot-toast";
 import { Copy, ExternalLink } from "lucide-react";
 import { EXPLORER_URL, fmtUsdc, short } from "../lib/ec";
 import { COPY, COPY_DEPLOYED, MIRROR_VAULT_ABI } from "../lib/copy";
 import { useMyFollow } from "./useCopy";
+import { useFollowerClaimables } from "./useLeaderboard";
 
 /** The follower's side of copy trading: what's in the vault, who it mirrors, and the way out. */
 export const CopyVaultCard: React.FC = () => {
   const f = useMyFollow();
+  const { address } = useAccount();
   const pc = usePublicClient();
   const { writeContractAsync } = useWriteContract();
-  const [busy, setBusy] = useState<"withdraw" | "unfollow" | null>(null);
+  const { data: claimables = [], refetch: refetchClaimables } = useFollowerClaimables(address);
+  const [busy, setBusy] = useState<"withdraw" | "unfollow" | "redeem" | null>(null);
   if (!COPY_DEPLOYED) return null;
-  const hasVault = f.available > 0n || f.active;
+  const hasVault = f.available > 0n || f.active || claimables.length > 0;
   if (!hasVault) return null;
+  const claimTotal = claimables.reduce((s, c) => s + c.estPayoutUsdc, 0);
+
+  const redeem = async () => {
+    if (!address || !claimables.length) return;
+    setBusy("redeem");
+    const id = toast.loading(`Redeeming ${claimTotal.toFixed(2)} tUSDC of mirrored winnings…`);
+    try {
+      const hash = await writeContractAsync({
+        address: COPY.vault,
+        abi: MIRROR_VAULT_ABI,
+        functionName: "redeemMany",
+        args: [address, claimables.map((c) => c.marketId as `0x${string}`), claimables.map((c) => c.outcomeIdx)],
+      });
+      await pc?.waitForTransactionReceipt({ hash });
+      toast.success(
+        <a href={`${EXPLORER_URL}/tx/${hash}`} target="_blank" rel="noreferrer" className="underline">
+          Winnings credited to your vault balance ↗
+        </a>,
+        { id, duration: 9000 },
+      );
+      f.refetch();
+      void refetchClaimables();
+    } catch (e) {
+      toast.error(((e as { shortMessage?: string }).shortMessage ?? (e as Error).message).split("\n")[0].slice(0, 120), { id });
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const run = async (kind: "withdraw" | "unfollow") => {
     setBusy(kind);
@@ -82,6 +113,17 @@ export const CopyVaultCard: React.FC = () => {
       <p className="text-[10px] text-bn-text-muted mt-3 leading-relaxed">
         Every mirror is an IOC order placed by <code>MirrorVault</code> from this deposit in the leader's block. RiskGuard pauses the mirror at the loss cap. You can leave any time.
       </p>
+      {claimables.length ? (
+        <div className="mt-3 flex items-center justify-between gap-3 rounded-lg px-3 py-2" style={{ background: "rgba(245,165,36,0.08)", border: "1px solid rgba(245,165,36,0.4)" }}>
+          <div className="text-xs">
+            <span className="text-amber font-bold">+{claimTotal.toFixed(2)} tUSDC</span> of mirrored winnings on {claimables.length} settled window{claimables.length > 1 ? "s" : ""}
+            <div className="text-[10px] text-bn-text-muted">the vault redeems through the market module and credits your balance</div>
+          </div>
+          <button onClick={redeem} disabled={busy !== null} className="shrink-0 px-3 py-1.5 rounded-lg font-bold text-xs text-black disabled:opacity-50" style={{ background: "#f5a524" }}>
+            {busy === "redeem" ? "redeeming…" : "Redeem"}
+          </button>
+        </div>
+      ) : null}
       <div className="flex gap-2 mt-3">
         <button onClick={() => run("withdraw")} disabled={busy !== null || f.available === 0n} className="btn-outline px-3 py-1.5 rounded-lg text-xs font-bold disabled:opacity-40">
           {busy === "withdraw" ? "withdrawing…" : `Withdraw ${fmtUsdc(f.available)} tUSDC`}

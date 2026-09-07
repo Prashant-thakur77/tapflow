@@ -78,6 +78,19 @@ CopyHandler     — SomniaEventHandler on PositionOpened → follower order same
 RiskGuard       — SomniaEventHandler on follower fills → close at maxLoss
 ```
 
+### Settlement for followers (v3)
+
+The vault is `msg.sender` on every mirrored order, so the pool credits the
+outcome tokens (ERC-6909 ids on the singleton outcome token) to the vault.
+`MirrorVault` keeps `shares[follower][marketId][side]` and exposes
+`redeem(follower, marketId, outcomeIdx, amount)` (anyone may call; the payout
+can only be credited to that follower) and `redeemMany`. Setup once per vault:
+`setVenue(module, operatorId, venueId)` and `approveOutcomeToken(token)`, which
+calls `setOperator(module, true)` so the module can pull the vault's winning
+tokens. The indexer's `/api/follower/:address/claimable` lists settled windows
+where the current vault still holds winning or voided shares for a follower;
+the Portfolio card calls `redeemMany` with them.
+
 ### Events the indexer & handlers key on
 
 ```solidity

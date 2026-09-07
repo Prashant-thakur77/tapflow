@@ -1,14 +1,33 @@
 {
   "chainId": 50312,
   "router": "0x512009743f48A924F679907ca9E206b706d499Cc",
-  "mirrorVault": "0x4d5F238420452D360D98AF0fA08A33048964a5A5",
-  "copyHandler": "0x2Fff45dFE73aE60f4Fd24fE25B7C93482DBeF43d",
-  "riskGuard": "0x8E6Fe05FF5bA01bC5f76e3169Ef9b65B9B0e67D4",
+  "mirrorVault": "0x1a9c46409a34511e05E0552618b81C818D5f0C12",
+  "copyHandler": "0x515d5186314Ac4956F08D11B5Aab55Cd5169920d",
+  "riskGuard": "0xA8a1FD962f1470c7b19D55fa740E00463a9B4b99",
   "collateral": "0x70a86D8842FB63C4Ad2b7cdddF530eBf1BB25d8E",
   "subscriptions": {
-    "copyHandler": "16764091",
+    "copyHandler": "16791404",
     "riskGuard": "0"
   },
-  "deployedAt": "2026-09-07T18:21:52.118247+00:00",
-  "note": "v2: MirrorVault escrows (1-price)*qty for DOWN mirrors; v1 vault 0xF5fc0897\u2026, v1 CopyHandler 0x63Ed0a42\u2026 (sub 16760441, unsubscribed)"
+  "deployedAt": "2026-09-07T20:52:00Z",
+  "note": "v3: MirrorVault tracks per-follower shares and redeems settled winnings through the BinaryMarketsModule (redeem/redeemMany), crediting the follower's deposit. v2 (vault 0x4d5F2384\u2026, handler 0x2Fff45dF\u2026 sub 16764091, guard 0x8E6Fe05F\u2026) retired: 33 STT recycled into the v3 subscription. v1 vault 0xF5fc0897\u2026, handler 0x63Ed0a42\u2026 (sub 16760441).",
+  "venue": {
+    "module": "0x3ecC694Cef705358864a646142ac17A90E29e388",
+    "operatorId": 2,
+    "venueId": "0x679795a0195a1b76cdebb7c51d74e058aee92919b8c3389af86ef24535e8a28c",
+    "outcomeToken": "0xB52c5934113Af5c0Bb20eb3C72290C8215f755b9"
+  },
+  "history": {
+    "v2": {
+      "mirrorVault": "0x4d5F238420452D360D98AF0fA08A33048964a5A5",
+      "copyHandler": "0x2Fff45dFE73aE60f4Fd24fE25B7C93482DBeF43d",
+      "riskGuard": "0x8E6Fe05FF5bA01bC5f76e3169Ef9b65B9B0e67D4",
+      "subscription": "16764091"
+    },
+    "v1": {
+      "mirrorVault": "0xF5fc089748604722ADa350599a8afBAFb0A6aB0A",
+      "copyHandler": "0x63Ed0a4242FD11A9A9296F8D8bDCd39D2E90c9c1",
+      "subscription": "16760441"
+    }
+  }
 }

@@ -1,6 +1,7 @@
 import http from "node:http";
 import { AGENT_ADDRESS, AGENT_LABEL, APP_URL, FEED_SECRET, PORT } from "./config.js";
 import { liveWindowsFromChain } from "./newmarkets.js";
+import { followerClaimables } from "./mirrors.js";
 import { addFeed, follows, leader, leaderboard, listFeed, marketPositions, recentFills, setFollow, settledMarkets, stats, tapByTx, type FeedItem } from "./db.js";
 import { lastSync } from "./chain.js";
 import { listMirrors, proofSummary } from "./mirrors.js";
@@ -46,7 +47,7 @@ export function startApi(): http.Server {
     try {
       if (req.method === "OPTIONS") return send(res, 204, "");
 
-      if (p === "/" || p === "/api") return send(res, 200, { name: "tapflow-indexer", endpoints: ["/api/health", "/api/stats", "/api/windows", "/api/recent", "/api/settled", "/api/market/:id/positions", "/api/mirrors", "/api/proof", "/api/leaderboard", "/api/leader/:address", "/api/feed", "/api/follows/:address", "/api/og"] });
+      if (p === "/" || p === "/api") return send(res, 200, { name: "tapflow-indexer", endpoints: ["/api/health", "/api/stats", "/api/windows", "/api/recent", "/api/settled", "/api/market/:id/positions", "/api/mirrors", "/api/follower/:address/claimable", "/api/proof", "/api/leaderboard", "/api/leader/:address", "/api/feed", "/api/follows/:address", "/api/og"] });
       if (p === "/api/health") {
         const s = stats();
         return send(res, 200, { ok: true, lastBlock: chainFillsCursor, fills: s.fills, lastSync });
@@ -107,6 +108,11 @@ export function startApi(): http.Server {
           ...(typeof it.code === "string" ? { code: it.code.slice(0, 32) } : {}),
         });
         return send(res, 201, { ok: true });
+      }
+      if (p.startsWith("/api/follower/") && p.endsWith("/claimable")) {
+        const a = p.slice("/api/follower/".length, -"/claimable".length);
+        if (!isAddr(a)) return send(res, 400, { error: "bad address" });
+        return send(res, 200, await followerClaimables(a));
       }
       if (p.startsWith("/api/follows/")) {
         const a = p.slice("/api/follows/".length);
