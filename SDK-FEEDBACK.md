@@ -189,3 +189,11 @@ A 21k-pinned transfer or a 300k "safe" limit silently burns the whole limit
 with status 0. The docs mention this once under gas differences; it deserves a
 box at the top of every quickstart, plus a note that `eth_estimateGas` on the
 node pads 2–5× and should be trusted over any client-side estimate.
+
+## 18. `listLiveBinaryMarkets` times out often enough that an app needs a chain-only fallback
+
+**What happened.** Over the build we saw `IndexerError: indexer LiveBinaryMarkets failed: The operation was aborted due to timeout` several times an hour from `dev.smk.somnia.host`, sometimes for minutes. Every indexer-backed read in the app (window list, opening prices, candles) goes dark together; the tap screen shows a spinner even though the pools are trading fine on-chain.
+
+**What we did.** Our indexer scans `MarketCreated` on the BinaryMarketsModule (`0x3ecC…e388`) in 1000-block chunks, filters by `venueId` in JS (it is not indexed), names the series from the pool (pools are recycled per series, so a pool we have seen once tells us asset + cadence), and verifies each row with `getMarketOnchain` before serving it at `/api/windows`. The app and the agent race the SDK call against a 9 s timer and fall back to that route. During one outage the fallback listed 10 live windows (5m, 15m, 1h, 4h, 24h) while the upstream call was timing out.
+
+**Ask.** (a) A per-call timeout option on the indexer boundary (`postGraphql`) so callers can fail fast instead of waiting on undici's default; (b) a documented chain-only discovery helper in the SDK — `MarketCreated` + `getMarketOnchain` is enough, and the event should carry the series (asset, interval) so a fresh pool can be named without an indexer; (c) surface indexer health (`lastIndexedBlock`) so an app can show "indexer lagging" instead of a spinner.
