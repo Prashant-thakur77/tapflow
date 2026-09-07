@@ -178,10 +178,20 @@ export function upsertMarket(m: Omit<MarketRow, "result" | "fillsDone">): void {
 export const getMarket = (id: string) => stmts.getMarket.get(id.toLowerCase()) as MarketRow | undefined;
 export const markFillsDone = (id: string) => stmts.setFillsDone.run(id.toLowerCase());
 
+const similarStmt = db.prepare(`SELECT 1 FROM fills WHERE txHash = ? AND taker = ? AND side = ? AND ABS(qty - ?) < 0.0005 LIMIT 1`);
+/** The same fill seen through another source (tape vs chain logs)? */
+export const existsSimilarFill = (txHash: string, taker: string, side: Side, qty: number): boolean =>
+  !!similarStmt.get(txHash.toLowerCase(), taker.toLowerCase(), side, qty);
+
 export function insertFills(rows: Omit<FillRowDb, "result" | "pnl">[]): number {
   let n = 0;
   const tx = db.transaction((items: typeof rows) => {
-    for (const r of items) n += stmts.insertFill.run({ ...r, marketId: r.marketId.toLowerCase(), pool: r.pool.toLowerCase(), taker: r.taker.toLowerCase() }).changes;
+    for (const r of items) {
+      const row = { ...r, marketId: r.marketId.toLowerCase(), pool: r.pool.toLowerCase(), taker: r.taker.toLowerCase(), txHash: r.txHash.toLowerCase() };
+      // a chain-derived row and a tape row for the same fill must not double count
+      if (!r.id.startsWith("chain:") && existsSimilarFill(row.txHash, row.taker, row.side, row.qty)) continue;
+      n += stmts.insertFill.run(row).changes;
+    }
   });
   tx(rows);
   return n;

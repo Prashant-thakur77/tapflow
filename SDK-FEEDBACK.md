@@ -128,6 +128,20 @@ and the faucet should hand out enough on request.
   `vm.toString` in a deploy script hits "stack too deep" without `via_ir`. Ship
   the reactivity examples with `via_ir = true` so newcomers don't chase it.
 
+## 14b. The fills tape lags by hours and `getUserFills` times out
+
+Measured 7 Sep, 19:46 UTC: `client.getFills(pool)` for the live ETH 24h window
+returned 64 rows whose newest timestamp was 18:06 UTC — 100 minutes behind —
+and none of the six IOC fills our wallet had placed on that pool between 17:50
+and 18:31 were in it. `client.getUserFills(address)` for the same wallet hit
+the SDK's request timeout (`UserFills` GraphQL, `TimeoutError`). Gotcha #11
+already warns that the REST trade feed can stall; the indexed tape stalls too.
+Any product that builds a leaderboard or history from the tape will show
+stale or missing data during judging — we ended up indexing `OrderFilled`
+from pool logs ourselves. Two asks: publish a "tape lag" field on the
+indexer (max indexed block/timestamp per pool), and raise or expose the
+`getUserFills` timeout.
+
 ## 15. The venue's lot size changed to 1000 — and it's only discoverable on-chain
 
 The bot kit's `ec-core/config.ts` says testnet "accepted orders down to 1 raw
