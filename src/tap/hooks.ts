@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAccount, useBalance } from "wagmi";
+import { useTapStore } from "../store";
 import {
   useLiveBinaryOrderBookByMarket,
   useLivePrice,
@@ -164,7 +165,7 @@ export function useClaimable() {
   return useQuery({
     queryKey: ["claimable", address],
     enabled: !!address,
-    queryFn: () => listClaimable(getClient(), address!),
+    queryFn: () => listClaimable(getClient(), address!, useTapStore.getState().taps),
     refetchInterval: 15_000,
   });
 }
