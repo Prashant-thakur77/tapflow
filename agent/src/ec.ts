@@ -94,8 +94,36 @@ export async function refreshStatus(client: SomniaMarketsClient, marketId: Hex):
   return oc.finalized ? MARKET_STATUS.Resolved : oc.status;
 }
 
+interface ChainWindowRow {
+  marketId: Hex; pool: Hex; marketAddress: Hex; asset: string; intervalSec: number; tradingStart: number; expiry: number;
+  outcomeToken: Hex; yesId: string; noId: string; collateral: Hex; status: number;
+}
+
+/** Our indexer's chain-discovered windows — used when the upstream indexer times out. */
+async function listLiveWindowsFallback(opts: { asset?: Asset } = {}): Promise<TapWindow[]> {
+  const res = await fetch(`${config.tapflowApi}/api/windows`);
+  if (!res.ok) throw new Error(`fallback /api/windows → ${res.status}`);
+  const rows = (await res.json()) as ChainWindowRow[];
+  return rows
+    .filter((r) => (r.asset === "BTC" || r.asset === "ETH") && (!opts.asset || r.asset === opts.asset))
+    .map((r) => ({
+      marketId: r.marketId, pool: r.pool, marketAddress: r.marketAddress, asset: r.asset as Asset, intervalSec: r.intervalSec,
+      expiry: r.expiry, outcomeToken: r.outcomeToken, yesId: BigInt(r.yesId), noId: BigInt(r.noId), collateral: r.collateral,
+    }))
+    .sort((a, b) => a.expiry - b.expiry);
+}
+
 export async function listLiveWindows(client: SomniaMarketsClient, opts: { asset?: Asset } = {}): Promise<TapWindow[]> {
-  const rows = await client.listLiveBinaryMarkets({ venueId: config.venueId, asset: opts.asset, limit: 40 });
+  let rows: Awaited<ReturnType<SomniaMarketsClient["listLiveBinaryMarkets"]>>;
+  try {
+    rows = await Promise.race([
+      client.listLiveBinaryMarkets({ venueId: config.venueId, asset: opts.asset, limit: 40 }),
+      new Promise<never>((_, rej) => setTimeout(() => rej(new Error("upstream timeout")), 9_000)),
+    ]);
+  } catch (e) {
+    console.warn(`upstream indexer failed (${String(e).slice(0, 60)}) — using chain-discovered windows`);
+    return listLiveWindowsFallback(opts);
+  }
   const onchain = await Promise.all(rows.map((r) => readOnchain(client, r.marketId)));
   const out: TapWindow[] = [];
   rows.forEach((r, i) => {

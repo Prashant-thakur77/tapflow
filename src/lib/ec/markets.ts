@@ -5,6 +5,7 @@
 // every one on its on-chain status (the indexer lags by seconds and only
 // status 1 = Trading accepts orders).
 
+import { TAPFLOW_API } from "../api";
 import type { SomniaMarketsClient, MarketOnchain } from "@somnia-chain/markets-sdk";
 import type { Address, Hex } from "viem";
 import { VENUE_ID } from "./config";
@@ -83,17 +84,75 @@ export async function refreshStatus(client: SomniaMarketsClient, marketId: Hex):
   return oc.finalized ? MARKET_STATUS.Resolved : oc.status;
 }
 
+const UPSTREAM_TIMEOUT_MS = 9_000;
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(`timeout after ${ms}ms`)), ms);
+    p.then((v) => { clearTimeout(t); resolve(v); }, (e) => { clearTimeout(t); reject(e); });
+  });
+}
+
+interface ChainWindowRow {
+  marketId: Hex;
+  pool: Address;
+  marketAddress: Address;
+  asset: string;
+  intervalSec: number;
+  tradingStart: number;
+  expiry: number;
+  outcomeToken: Address;
+  yesId: string;
+  noId: string;
+  collateral: Address;
+  status: number;
+}
+
+/** Windows from our own indexer's chain scan (`/api/windows`), already verified Trading on-chain. */
+async function listLiveWindowsFallback(opts: { asset?: Asset } = {}): Promise<TapWindow[]> {
+  const res = await fetch(`${TAPFLOW_API}/api/windows`);
+  if (!res.ok) throw new Error(`fallback /api/windows → ${res.status}`);
+  const rows = (await res.json()) as ChainWindowRow[];
+  return rows
+    .filter((r) => asAsset(r.asset) && (!opts.asset || r.asset === opts.asset))
+    .map((r) => ({
+      marketId: r.marketId,
+      pool: r.pool,
+      marketAddress: r.marketAddress,
+      asset: asAsset(r.asset)!,
+      intervalSec: r.intervalSec,
+      expiry: r.expiry,
+      tradingStart: r.tradingStart,
+      strike: null,
+      question: `${r.asset} above its opening price?`,
+      outcomeToken: r.outcomeToken,
+      yesId: BigInt(r.yesId),
+      noId: BigInt(r.noId),
+      collateral: r.collateral,
+      status: r.status,
+      venueId: VENUE_ID,
+      operatorId: null,
+      volumeUsdc: 0,
+      trades: 0,
+      lastPrice: null,
+    }))
+    .sort((a, b) => a.expiry - b.expiry);
+}
+
 /** Every window on the venue that is Trading on-chain right now, soonest expiry first. */
 export async function listLiveWindows(
   client: SomniaMarketsClient,
   opts: { asset?: Asset; limit?: number } = {},
 ): Promise<TapWindow[]> {
   const t0 = Date.now();
-  const rows = await client.listLiveBinaryMarkets({
-    venueId: VENUE_ID,
-    asset: opts.asset,
-    limit: opts.limit ?? 40,
-  });
+  let rows: Awaited<ReturnType<SomniaMarketsClient["listLiveBinaryMarkets"]>>;
+  try {
+    rows = await withTimeout(client.listLiveBinaryMarkets({ venueId: VENUE_ID, asset: opts.asset, limit: opts.limit ?? 40 }), UPSTREAM_TIMEOUT_MS);
+  } catch (e) {
+    // The upstream indexer times out regularly. Our own indexer discovers windows from
+    // MarketCreated logs and verifies them on-chain, so the tap screen stays live.
+    console.warn(`[tapflow] upstream indexer failed (${String(e).slice(0, 80)}) — using chain-discovered windows`);
+    return listLiveWindowsFallback(opts);
+  }
   const fresh = rows.filter((r) => !onchainCache.has(r.marketId.toLowerCase())).length;
   console.debug(`[tapflow] indexer: ${rows.length} live rows (${fresh} new) in ${Date.now() - t0}ms`);
 

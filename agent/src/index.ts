@@ -63,7 +63,7 @@ async function sample() {
 }
 
 /** The window to trade: the configured cadence, or the shortest live one. */
-function chooseWindow(windows: TapWindow[], asset: typeof config.asset): TapWindow | undefined {
+function chooseWindow(windows: TapWindow[], asset: Asset): TapWindow | undefined {
   if (config.cadence !== "auto" && config.cadenceSec > 0) return pickWindow(windows, asset, config.cadenceSec, config.minLeftSec);
   const cads = [...new Set(windows.filter((w) => w.asset === asset).map((w) => w.intervalSec))].sort((a, b) => a - b);
   for (const c of cads) {
@@ -74,7 +74,7 @@ function chooseWindow(windows: TapWindow[], asset: typeof config.asset): TapWind
 }
 
 /** Publish a hold to the feed, but only when the reason changes or the heartbeat is due. */
-async function publishHold(asset: typeof config.asset, v: Verdict, w: TapWindow | undefined, price: number | null) {
+async function publishHold(asset: Asset, v: Verdict, w: TapWindow | undefined, price: number | null) {
   stable = stable.code === v.code ? { code: v.code, ticks: stable.ticks + 1 } : { code: v.code, ticks: 1 };
   const changed = v.code !== lastHold.code && stable.ticks >= HOLD_STABLE_TICKS && Date.now() - lastHold.at > HOLD_MIN_GAP_MS;
   const heartbeat = Date.now() - lastHold.at > config.holdHeartbeatMs;
@@ -94,42 +94,60 @@ async function publishHold(asset: typeof config.asset, v: Verdict, w: TapWindow 
   });
 }
 
-async function tick() {
-  await sample();
-  if (placing) return;
+type Asset = (typeof ASSETS)[number];
 
-  const asset = config.asset;
+interface Candidate {
+  asset: Asset;
+  w: TapWindow | undefined;
+  side: Side | null;
+  bps: number | null;
+  q: ReturnType<typeof quoteFromBook>;
+  verdict: Verdict;
+  callRationale: string;
+}
+
+/** Signal + book + risk gate for one asset. */
+async function evaluate(asset: Asset, windows: TapWindow[]): Promise<Candidate> {
   const m = mom.read(asset);
   const call = decide(asset, m, config.momentumBps);
-  const stamp = new Date().toISOString().slice(11, 19);
-
-  const windows = await listLiveWindows(client, { asset }).catch(() => [] as TapWindow[]);
   const w = chooseWindow(windows, asset);
-  let q = null;
+  let q: ReturnType<typeof quoteFromBook> = null;
   let otherAsk: number | null = null;
   if (w && call.side) {
     const book = await readBook(client, w).catch(() => null);
     if (book) {
       q = quoteFromBook(book, call.side, toRaw(config.stakeUsdc));
-      const other = quoteFromBook(book, call.side === "UP" ? "DOWN" : "UP", toRaw(config.stakeUsdc));
-      otherAsk = other?.impliedProb ?? null;
+      otherAsk = quoteFromBook(book, call.side === "UP" ? "DOWN" : "UP", toRaw(config.stakeUsdc))?.impliedProb ?? null;
     }
   }
+  const verdict = gate({ w, side: call.side, bps: m?.bps ?? null, q, otherAsk, stakeUsdc: config.stakeUsdc, secondsLeft: w ? secondsLeft(w) : 0, ledger }, risk);
+  return { asset, w, side: call.side, bps: m?.bps ?? null, q, verdict, callRationale: call.rationale };
+}
 
-  const verdict = gate(
-    { w, side: call.side, bps: m?.bps ?? null, q, otherAsk, stakeUsdc: config.stakeUsdc, secondsLeft: w ? secondsLeft(w) : 0, ledger },
-    risk,
-  );
+const HOLD_RANK: Record<string, number> = { NO_WINDOW: 0, NO_SIGNAL: 1, FLAT: 2, THIN_BOOK: 3, NEAR_EXPIRY: 4, PRICE_TOO_HIGH: 5, SPREAD_EATS_EDGE: 6, COOLDOWN: 7, ALREADY_IN_WINDOW: 8, EXPOSURE_CAP: 9 };
 
-  if (!verdict.ok || !w || !q || !call.side) {
-    console.log(`[${stamp}] HOLD ${verdict.code}: ${verdict.reason}`);
-    await publishHold(asset, verdict, w, q?.impliedProb ?? null);
+async function tick() {
+  await sample();
+  if (placing) return;
+  const stamp = new Date().toISOString().slice(11, 19);
+
+  const assets: Asset[] = config.asset === "AUTO" ? [...ASSETS] : [config.asset as Asset];
+  const windows = await listLiveWindows(client).catch(() => [] as TapWindow[]);
+  const cands = await Promise.all(assets.map((a) => evaluate(a, windows)));
+
+  // Best tradable candidate by edge; otherwise the most "interesting" hold to report.
+  const ok = cands.filter((c) => c.verdict.ok && c.w && c.q && c.side).sort((a, b) => (b.verdict.edgePts ?? 0) - (a.verdict.edgePts ?? 0));
+  const pick = ok[0] ?? [...cands].sort((a, b) => (HOLD_RANK[b.verdict.code] ?? 0) - (HOLD_RANK[a.verdict.code] ?? 0))[0];
+
+  if (!pick.verdict.ok || !pick.w || !pick.q || !pick.side) {
+    console.log(`[${stamp}] HOLD ${pick.asset} ${pick.verdict.code}: ${pick.verdict.reason}`);
+    await publishHold(pick.asset, pick.verdict, pick.w, pick.q?.impliedProb ?? null);
     await sweep(stamp);
     return;
   }
 
-  const side: Side = call.side;
-  const rationale = `${call.rationale} · ${verdict.reason} (${fmtCadence(w.intervalSec)} window, ${Math.round(secondsLeft(w))}s left)`;
+  const { asset, w, q, side } = pick;
+  const rationale = `${pick.callRationale} · ${pick.verdict.reason} (${fmtCadence(w.intervalSec)} window, ${Math.round(secondsLeft(w))}s left)`;
 
   if (config.dryRun || !canTrade()) {
     console.log(`[${stamp}] DRY ${side} ${config.stakeUsdc} ${asset} — ${rationale}`);
@@ -179,7 +197,7 @@ async function sweep(stamp: string) {
 }
 
 async function main() {
-  console.log(`TapBot (${config.label})  asset=${config.asset} cadence=${config.cadence === "auto" ? "auto (shortest live)" : fmtCadence(config.cadenceSec)} stake=${config.stakeUsdc} tUSDC`);
+  console.log(`TapBot (${config.label})  asset=${config.asset === "AUTO" ? "auto (BTC|ETH by edge)" : config.asset} cadence=${config.cadence === "auto" ? "auto (shortest live)" : fmtCadence(config.cadenceSec)} stake=${config.stakeUsdc} tUSDC`);
   console.log(`wallet ${me} · trading=${canTrade() && !config.dryRun} · router=${config.routerAddress ?? "unset"} · feed=${config.tapflowApi}`);
   console.log(`risk: max price ${Math.round(risk.maxPrice * 100)}¢ · min edge ${risk.minEdgePts}pt · cooldown ${risk.cooldownSec}s · window cap ${risk.maxWindowUsdc} tUSDC · auto-claim ${config.autoClaim}`);
   if (!canTrade()) console.log("No AGENT_PRIVATE_KEY — running in read-only signal mode (no orders).");

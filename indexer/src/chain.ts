@@ -9,6 +9,7 @@ import { SomniaMarkets, SOMNIA_TESTNET_ADDRESSES, type BinaryMarket } from "@som
 import { defineChain } from "viem";
 import { BACKFILL, CHAIN_ID, INDEXER_URL, ONE, RPC_URL, VENUE_ID, WS_RPC_URL } from "./config.js";
 import { applyResult, getMarket, getMeta, insertFills, markFillsDone, setMeta, upsertMarket, type MarketResult, type Side } from "./db.js";
+import { syncMarketsFromChain } from "./newmarkets.js";
 import { syncMirrors } from "./mirrors.js";
 import { syncChainFills } from "./chainfills.js";
 
@@ -111,12 +112,19 @@ export async function syncOnce(): Promise<void> {
   if (running) return;
   running = true;
   const t0 = Date.now();
+  let upstreamError = "";
+  let liveCount = 0;
+  let pastCount = 0;
+  let newFills = 0;
+  let resolved = 0;
   try {
     const first = !getMeta("backfilled");
     const [live, past] = await Promise.all([
       client.listLiveBinaryMarkets({ venueId: VENUE_ID, limit: 60 }),
       client.listPastBinaryMarkets({ venueId: VENUE_ID, status: "Finalized", limit: first ? BACKFILL : 40 }),
     ]);
+    liveCount = live.length;
+    pastCount = past.length;
     for (const m of [...live, ...past]) {
       upsertMarket({ ...toTarget(m), status: String(m.status) });
     }
@@ -125,7 +133,6 @@ export async function syncOnce(): Promise<void> {
     const targets = [...live.map((m) => ({ m, t: toTarget(m), settled: false })), ...past.map((m) => ({ m, t: toTarget(m), settled: true }))].filter(
       ({ t, settled }) => !settled || !getMarket(t.marketId)?.fillsDone,
     );
-    let newFills = 0;
     await mapLimit(targets, 4, async ({ t }) => {
       try {
         newFills += insertFills(await fetchTaps(t));
@@ -135,7 +142,6 @@ export async function syncOnce(): Promise<void> {
     });
 
     // Results: settled markets without one yet (plus the oracle's open/close prices).
-    let resolved = 0;
     await mapLimit(
       past.filter((m) => !getMarket(m.marketId)?.result),
       4,
@@ -149,22 +155,24 @@ export async function syncOnce(): Promise<void> {
       },
     );
     if (first) setMeta("backfilled", String(Date.now()));
-    try {
-      await syncMirrors();
-    } catch (e) {
-      log(`mirrors sync failed: ${String(e).slice(0, 160)}`);
-    }
-    try {
-      await syncChainFills();
-    } catch (e) {
-      log(`chain fills sync failed: ${String(e).slice(0, 160)}`);
-    }
-    lastSync = { at: Date.now(), live: live.length, settled: past.length, newFills, error: "" };
-    log(`sync: ${live.length} live, ${past.length} settled, +${newFills} fills, ${resolved} resolved, ${Date.now() - t0}ms`);
   } catch (e) {
-    lastSync = { ...lastSync, error: String(e).slice(0, 200) };
-    log(`sync failed: ${String(e).slice(0, 200)}`);
-  } finally {
-    running = false;
+    // The upstream indexer is the flaky part. Everything below reads chain only and must still run.
+    upstreamError = String(e).slice(0, 200);
+    log(`upstream sync failed: ${upstreamError}`);
   }
+  // Chain-only scanners: new windows from MarketCreated, reactive mirrors, taker fills.
+  for (const [name, fn] of [
+    ["new markets", syncMarketsFromChain],
+    ["mirrors", syncMirrors],
+    ["chain fills", syncChainFills],
+  ] as const) {
+    try {
+      await fn();
+    } catch (e) {
+      log(`${name} sync failed: ${String(e).slice(0, 160)}`);
+    }
+  }
+  lastSync = { at: Date.now(), live: liveCount, settled: pastCount, newFills, error: upstreamError };
+  log(`sync: ${liveCount} live, ${pastCount} settled, +${newFills} fills, ${resolved} resolved, ${Date.now() - t0}ms${upstreamError ? " (upstream down, chain scanners ran)" : ""}`);
+  running = false;
 }

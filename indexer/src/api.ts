@@ -1,5 +1,6 @@
 import http from "node:http";
 import { AGENT_ADDRESS, AGENT_LABEL, APP_URL, FEED_SECRET, PORT } from "./config.js";
+import { liveWindowsFromChain } from "./newmarkets.js";
 import { addFeed, follows, leader, leaderboard, listFeed, marketPositions, recentFills, setFollow, settledMarkets, stats, tapByTx, type FeedItem } from "./db.js";
 import { lastSync } from "./chain.js";
 import { listMirrors, proofSummary } from "./mirrors.js";
@@ -45,12 +46,13 @@ export function startApi(): http.Server {
     try {
       if (req.method === "OPTIONS") return send(res, 204, "");
 
-      if (p === "/" || p === "/api") return send(res, 200, { name: "tapflow-indexer", endpoints: ["/api/health", "/api/stats", "/api/recent", "/api/settled", "/api/market/:id/positions", "/api/mirrors", "/api/proof", "/api/leaderboard", "/api/leader/:address", "/api/feed", "/api/follows/:address", "/api/og"] });
+      if (p === "/" || p === "/api") return send(res, 200, { name: "tapflow-indexer", endpoints: ["/api/health", "/api/stats", "/api/windows", "/api/recent", "/api/settled", "/api/market/:id/positions", "/api/mirrors", "/api/proof", "/api/leaderboard", "/api/leader/:address", "/api/feed", "/api/follows/:address", "/api/og"] });
       if (p === "/api/health") {
         const s = stats();
         return send(res, 200, { ok: true, lastBlock: chainFillsCursor, fills: s.fills, lastSync });
       }
       if (p === "/api/stats") return send(res, 200, stats());
+      if (p === "/api/windows") return send(res, 200, await liveWindowsFromChain());
       if (p === "/api/mirrors") {
         const limit = Math.min(200, Math.max(1, Number(url.searchParams.get("limit") ?? 30)));
         return send(res, 200, listMirrors(limit));

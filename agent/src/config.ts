@@ -23,7 +23,8 @@ export const config = {
   routerAddress: (process.env.ROUTER_ADDRESS || undefined) as Hex | undefined,
 
   // Strategy knobs.
-  asset: (env("AGENT_ASSET", "BTC").toUpperCase() as "BTC" | "ETH"),
+  /** "auto" = whichever asset has a live window and the best edge this tick. */
+  asset: (env("AGENT_ASSET", "auto").toUpperCase() as "BTC" | "ETH" | "AUTO"),
   /** "auto" = shortest live cadence for the asset; else seconds. */
   cadence: env("AGENT_CADENCE_SEC", "auto"),
   cadenceSec: Number(env("AGENT_CADENCE_SEC", "300")) || 0,

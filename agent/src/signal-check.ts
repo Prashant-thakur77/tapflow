@@ -29,8 +29,9 @@ async function run() {
     const call = decide(a, m, config.momentumBps);
     console.log(`${a}: ${m ? `${m.last.toFixed(2)} (${m.bps >= 0 ? "+" : ""}${m.bps.toFixed(1)}bps, ${m.samples} samples)` : "no data"} → ${call.rationale}`);
   }
-  const windows = await listLiveWindows(client, { asset: config.asset });
-  const w = pickWindow(windows, config.asset, config.cadenceSec, config.minLeftSec);
+  const asset = config.asset === "AUTO" ? "BTC" : config.asset;
+  const windows = await listLiveWindows(client, { asset });
+  const w = pickWindow(windows, asset, config.cadenceSec || 300, config.minLeftSec);
   if (w) {
     const book = await readBook(client, w);
     const up = quoteFromBook(book, "UP", toRaw(config.stakeUsdc));
