@@ -53,6 +53,5 @@ indexer/*.db
 indexer/*.db-*
 agent/node_modules/
 tg-bot/node_modules/
-deployments.json
 subscriptions.json
 .vercel
