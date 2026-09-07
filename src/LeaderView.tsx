@@ -87,7 +87,7 @@ export const LeaderView: React.FC = () => {
         <section className="tf-card p-3 sm:p-4">
           <h2 className="font-bold text-sm mb-3">Recent taps</h2>
           {isError ? (
-            <div className="text-xs text-bn-text-dim">Indexer offline.</div>
+            <div className="text-xs text-bn-text-dim">No taps indexed for this address yet (or the indexer is offline). On-chain follows and mirrors still count.</div>
           ) : isLoading ? (
             <div className="tf-skeleton h-24" />
           ) : !data?.recent?.length ? (

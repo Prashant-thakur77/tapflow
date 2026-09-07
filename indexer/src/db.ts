@@ -293,8 +293,19 @@ export function leaderboard(limit = 50): Leader[] {
 export function leader(address: string): (Leader & { recent: TapRow[] }) | null {
   const a = address.toLowerCase();
   const rows = stmts.tapsOf.all(a, 500) as TapAgg[];
-  if (rows.length === 0) return null;
-  const [l] = aggregate(rows, followerMap(), copiesFn());
+  const followers = followerMap();
+  const copies = copiesFn();
+  if (rows.length === 0) {
+    // Known through the copy contracts or the agent label, but no fills on the
+    // (lagging) tape yet: still a leader page, just an empty record.
+    const isAgent = !!AGENT_ADDRESS && a === AGENT_ADDRESS;
+    if (!isAgent && !(copies.get(a) ?? 0) && !(followers.get(a) ?? 0)) return null;
+    return {
+      address: a, taps: 0, wins: 0, losses: 0, winRate: 0, streak: 0, bestStreak: 0, pnlUsdc: 0, volumeUsdc: 0,
+      followers: followers.get(a) ?? 0, copies: copies.get(a) ?? 0, isAgent, ...(isAgent ? { label: AGENT_LABEL } : {}), recent: [],
+    };
+  }
+  const [l] = aggregate(rows, followers, copies);
   return { ...l, recent: rows.slice(0, 50).map(toTapRow) };
 }
 
