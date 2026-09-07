@@ -27,7 +27,7 @@ Prediction markets are solo and clunky: connect, approve, read an order book, si
 
 | # | Feature | State | Proof |
 |---|---|---|---|
-| **F1** | Tap screen on real Event Contracts | ✅ live | places IOC orders, live book/odds/spot, claims, on-chain fills history |
+| **F1** | Tap screen on real Event Contracts | ✅ live | places IOC orders, live book/odds/spot, crowd-odds chart (1m candles), top positions on the window, claims, on-chain fills history |
 | **F2** | One-tap session keys | ✅ live | capped auto-sweeping session wallet: one funding popup, then zero prompts |
 | **F3** | Copy-trading contracts (reactivity) | ✅ **deployed + proven on Shannon** | same-block mirror in [block 482312219](https://shannon-explorer.somnia.network/block/482312219); subscription `16760441`; `forge test` 10/10 |
 | **F4** | Fills indexer + leaderboard API | ✅ live | 47 wallets / 177 taps / 3.6k tUSDC indexed from chain |

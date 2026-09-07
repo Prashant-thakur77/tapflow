@@ -50,3 +50,16 @@ respected.
 - Family.co / Rainbow: playful confidence in a wallet UI.
 - Linear / Vercel: dark surfaces, restrained glass, typographic hierarchy.
 - Arcade HUDs: countdown as the centre of gravity.
+
+## Reference-driven additions (8 Sep)
+
+Studied with headless Chromium: DreamDEX's own `/event-contracts` page, Polymarket's crypto up/down grid, Limitless. What we took and made ours:
+
+- **Question framing** (DreamDEX): "Will BTC settle above $X at HH:MM?" under the odds bar, so the bet is never ambiguous.
+- **Recently settled strip** (DreamDEX): the last windows of the series with their close price — the pattern hunters' strip.
+- **Order details drawer** (DreamDEX): YES book top 5 in cents, grid, pool and marketId for the pros; hidden by default.
+- **Markets grid with payout-on-chip** (Polymarket): every live window as a card, `stake → payout` on the UP/DOWN chips, LIVE + volume, cadence filters.
+- **Venue-wide live ticker** (Limitless): every fill on the venue scrolls under the header.
+- **Crowd odds over the window** (Limitless): 1-minute candles of the YES price, bounded to the window's trading span (pools are recycled), with the live quote as the last point and a 50% coin-flip line.
+- **Top positions on this window** (Limitless): who holds what, from chain-indexed fills, with an UP/DOWN share bar.
+- **Proof page + landing proof strip** (ours): the indexer pairs every reactive mirror with its broadcast and reports the same-block rate live.
