@@ -105,6 +105,8 @@ interface ChainWindowRow {
   noId: string;
   collateral: Address;
   status: number;
+  trades?: number;
+  volumeUsdc?: number;
 }
 
 /** Windows from our own indexer's chain scan (`/api/windows`), already verified Trading on-chain. */
@@ -131,8 +133,8 @@ async function listLiveWindowsFallback(opts: { asset?: Asset } = {}): Promise<Ta
       status: r.status,
       venueId: VENUE_ID,
       operatorId: null,
-      volumeUsdc: 0,
-      trades: 0,
+      volumeUsdc: r.volumeUsdc ?? 0,
+      trades: r.trades ?? 0,
       lastPrice: null,
     }))
     .sort((a, b) => a.expiry - b.expiry);

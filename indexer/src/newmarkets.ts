@@ -29,6 +29,7 @@ const st = {
   known: db.prepare(`SELECT 1 FROM markets WHERE marketId = ?`),
   live: db.prepare(`SELECT marketId, pool, asset, intervalSec, tradingStart, expiry FROM markets WHERE expiry > ? AND status != 'Finalized' ORDER BY expiry`),
   finalize: db.prepare(`UPDATE markets SET status = 'Finalized', updatedAt = ? WHERE marketId = ?`),
+  activity: db.prepare(`SELECT COUNT(*) AS trades, COALESCE(SUM(cost), 0) AS volume FROM fills WHERE marketId = ?`),
 };
 
 export let marketsCursor = Number(getMeta("newmarkets_cursor") ?? 0);
@@ -80,6 +81,9 @@ export interface ChainWindow {
   noId: string;
   collateral: string;
   status: number;
+  /** from our own chain-indexed fills */
+  trades: number;
+  volumeUsdc: number;
 }
 
 let cache: { at: number; rows: ChainWindow[] } = { at: 0, rows: [] };
@@ -112,6 +116,10 @@ export async function liveWindowsFromChain(): Promise<ChainWindow[]> {
           noId: oc.noId.toString(),
           collateral: oc.collateral,
           status: oc.status,
+          ...(() => {
+            const a = st.activity.get(r.marketId) as { trades: number; volume: number };
+            return { trades: a.trades, volumeUsdc: Math.round(a.volume * 100) / 100 };
+          })(),
         });
       } catch {
         /* skip this row this time */
