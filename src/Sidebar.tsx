@@ -1,5 +1,5 @@
 import React from "react";
-import { Zap, LayoutGrid, Users, Wallet, History } from "lucide-react";
+import { Zap, LayoutGrid, Users, Wallet, History, ShieldCheck } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -17,6 +17,7 @@ export const Sidebar: React.FC = () => {
     { icon: Users, label: "Leaders", path: "/leaders" },
     { icon: Wallet, label: "Portfolio", path: "/portfolio" },
     { icon: History, label: "History", path: "/history" },
+    { icon: ShieldCheck, label: "Proof", path: "/proof" },
   ];
 
   return (

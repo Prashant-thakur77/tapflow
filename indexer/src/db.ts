@@ -56,6 +56,8 @@ export interface Leader {
   pnlUsdc: number;
   volumeUsdc: number;
   followers: number;
+  /** successful on-chain mirrors of this leader's broadcasts */
+  copies: number;
   isAgent: boolean;
   label?: string;
 }
@@ -234,7 +236,7 @@ const toTapRow = (t: TapAgg): TapRow => ({
 
 const round = (n: number, dp = 2) => Math.round(n * 10 ** dp) / 10 ** dp;
 
-function aggregate(taps: TapAgg[], followers: Map<string, number>): Leader[] {
+function aggregate(taps: TapAgg[], followers: Map<string, number>, copies: Map<string, number> = new Map()): Leader[] {
   const by = new Map<string, TapAgg[]>();
   for (const t of taps) by.set(t.taker, [...(by.get(t.taker) ?? []), t]);
   const out: Leader[] = [];
@@ -265,6 +267,7 @@ function aggregate(taps: TapAgg[], followers: Map<string, number>): Leader[] {
       pnlUsdc: round(rows.reduce((a, r) => a + (r.pnl ?? 0), 0)),
       volumeUsdc: round(rows.reduce((a, r) => a + r.cost, 0)),
       followers: followers.get(address) ?? 0,
+      copies: copies.get(address) ?? 0,
       isAgent: !!AGENT_ADDRESS && address === AGENT_ADDRESS,
       ...(AGENT_ADDRESS && address === AGENT_ADDRESS ? { label: AGENT_LABEL } : {}),
     });
@@ -279,15 +282,19 @@ function followerMap(): Map<string, number> {
   return m;
 }
 
+let copiesFn: () => Map<string, number> = () => new Map();
+/** Injected by mirrors.ts (avoids an import cycle). */
+export const setCopiesSource = (fn: () => Map<string, number>) => { copiesFn = fn; };
+
 export function leaderboard(limit = 50): Leader[] {
-  return aggregate(stmts.taps.all() as TapAgg[], followerMap()).slice(0, limit);
+  return aggregate(stmts.taps.all() as TapAgg[], followerMap(), copiesFn()).slice(0, limit);
 }
 
 export function leader(address: string): (Leader & { recent: TapRow[] }) | null {
   const a = address.toLowerCase();
   const rows = stmts.tapsOf.all(a, 500) as TapAgg[];
   if (rows.length === 0) return null;
-  const [l] = aggregate(rows, followerMap());
+  const [l] = aggregate(rows, followerMap(), copiesFn());
   return { ...l, recent: rows.slice(0, 50).map(toTapRow) };
 }
 

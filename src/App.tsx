@@ -7,6 +7,8 @@ import { PortfolioView } from "./PortfolioView";
 import { HistoryView } from "./HistoryView";
 import { LeadersView } from "./LeadersView";
 import { MarketsView } from "./MarketsView";
+import { ProofView } from "./ProofView";
+import { LeaderView } from "./LeaderView";
 
 function App() {
   return (
@@ -23,6 +25,8 @@ function App() {
           <Route path="/tap" element={<TapView />} />
           <Route path="/markets" element={<MarketsView />} />
           <Route path="/leaders" element={<LeadersView />} />
+          <Route path="/leader/:address" element={<LeaderView />} />
+          <Route path="/proof" element={<ProofView />} />
           <Route path="/portfolio" element={<PortfolioView />} />
           <Route path="/history" element={<HistoryView />} />
         </Route>

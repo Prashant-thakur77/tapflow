@@ -26,6 +26,7 @@ export interface Leader {
   pnlUsdc: number;
   volumeUsdc: number;
   followers: number;
+  copies?: number;
   isAgent: boolean;
   label?: string;
 }

@@ -9,6 +9,7 @@ import { SomniaMarkets, SOMNIA_TESTNET_ADDRESSES, type BinaryMarket } from "@som
 import { defineChain } from "viem";
 import { BACKFILL, CHAIN_ID, INDEXER_URL, ONE, RPC_URL, VENUE_ID, WS_RPC_URL } from "./config.js";
 import { applyResult, getMarket, getMeta, insertFills, markFillsDone, setMeta, upsertMarket, type MarketResult, type Side } from "./db.js";
+import { syncMirrors } from "./mirrors.js";
 
 const chain = defineChain({
   id: CHAIN_ID,
@@ -147,6 +148,11 @@ export async function syncOnce(): Promise<void> {
       },
     );
     if (first) setMeta("backfilled", String(Date.now()));
+    try {
+      await syncMirrors();
+    } catch (e) {
+      log(`mirrors sync failed: ${String(e).slice(0, 160)}`);
+    }
     lastSync = { at: Date.now(), live: live.length, settled: past.length, newFills, error: "" };
     log(`sync: ${live.length} live, ${past.length} settled, +${newFills} fills, ${resolved} resolved, ${Date.now() - t0}ms`);
   } catch (e) {

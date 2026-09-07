@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { useAccount } from "wagmi";
+import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import { Bot, Trophy, UserPlus, Zap } from "lucide-react";
-import { addressUrl, short, txUrl } from "./lib/ec";
+import { short, txUrl } from "./lib/ec";
 import { COPY, COPY_DEPLOYED } from "./lib/copy";
 import type { Leader } from "./lib/api";
 import { useAgentFeed, useFollow, useLeaderboard, useStats } from "./tap/useLeaderboard";
@@ -121,11 +122,12 @@ export const LeadersView: React.FC = () => {
                         <tr key={l.address} className="border-t border-white/5 table-row-hover">
                           <td className="py-2 font-mono">{medal(i)}</td>
                           <td>
-                            <a href={addressUrl(l.address)} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 hover:text-white font-mono">
+                            <Link to={`/leader/${l.address}`} className="flex items-center gap-1.5 hover:text-white font-mono">
                               {l.isAgent ? <Bot size={13} className="text-accent-soft" /> : null}
                               <span className={l.isAgent ? "text-accent-soft font-bold" : ""}>{l.label ?? short(l.address)}</span>
                               {mine ? <span className="text-[10px] text-bn-text-muted">(you)</span> : null}
-                            </a>
+                              {(l.copies ?? 0) > 0 ? <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent/20 text-accent-soft" title="on-chain mirrors of this leader">⚡{l.copies} copies</span> : null}
+                            </Link>
                           </td>
                           <td className="text-right font-mono">
                             {Math.round(l.winRate * 100)}%<span className="text-bn-text-muted"> ({l.wins}/{l.wins + l.losses})</span>
