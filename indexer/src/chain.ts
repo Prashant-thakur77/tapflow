@@ -106,11 +106,27 @@ async function oraclePrices(marketId: string): Promise<{ open: number | null; cl
 }
 
 let running = false;
+let runningSince = 0;
+const SYNC_WATCHDOG_MS = 4 * 60_000;
 export let lastSync = { at: 0, live: 0, settled: 0, newFills: 0, error: "" };
 
+/** Reject after `ms` — an upstream call hung for hours once and froze the loop. */
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    p.then((v) => { clearTimeout(t); resolve(v); }, (e) => { clearTimeout(t); reject(e); });
+  });
+}
+
 export async function syncOnce(): Promise<void> {
-  if (running) return;
+  if (running) {
+    if (Date.now() - runningSince > SYNC_WATCHDOG_MS) {
+      log(`watchdog: sync stuck for ${Math.round((Date.now() - runningSince) / 1000)}s — releasing the lock`);
+      running = false;
+    } else return;
+  }
   running = true;
+  runningSince = Date.now();
   const t0 = Date.now();
   let upstreamError = "";
   let liveCount = 0;
@@ -119,10 +135,14 @@ export async function syncOnce(): Promise<void> {
   let resolved = 0;
   try {
     const first = !getMeta("backfilled");
-    const [live, past] = await Promise.all([
-      client.listLiveBinaryMarkets({ venueId: VENUE_ID, limit: 60 }),
-      client.listPastBinaryMarkets({ venueId: VENUE_ID, status: "Finalized", limit: first ? BACKFILL : 40 }),
-    ]);
+    const [live, past] = await withTimeout(
+      Promise.all([
+        client.listLiveBinaryMarkets({ venueId: VENUE_ID, limit: 60 }),
+        client.listPastBinaryMarkets({ venueId: VENUE_ID, status: "Finalized", limit: first ? BACKFILL : 40 }),
+      ]),
+      45_000,
+      "upstream markets",
+    );
     liveCount = live.length;
     pastCount = past.length;
     for (const m of [...live, ...past]) {
@@ -168,7 +188,7 @@ export async function syncOnce(): Promise<void> {
     ["chain fills", syncChainFills],
   ] as const) {
     try {
-      await fn();
+      await withTimeout(fn(), 120_000, name);
     } catch (e) {
       log(`${name} sync failed: ${String(e).slice(0, 160)}`);
     }
