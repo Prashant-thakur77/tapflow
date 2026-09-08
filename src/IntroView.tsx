@@ -165,6 +165,7 @@ export const IntroView: React.FC = () => {
         </div>
 
         <div className="mt-12 text-[11px] text-bn-text-muted font-mono flex flex-wrap gap-x-6 gap-y-1">
+          <span>no wallet needed to look around — every page reads live from chain</span>
           <span>built on @somnia-chain/markets-sdk</span>
           <span>every number on this page is read from Somnia Shannon</span>
         </div>
