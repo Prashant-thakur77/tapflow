@@ -51,4 +51,6 @@ Recording it: play the mp4 full screen and record your voice over it (OBS, Quick
 4. Wait for TapBot's next tap, or tap yourself and press **Broadcast to followers**.
 5. Open **Proof**: your mirror appears with its block number, and the explorer shows both transactions inside it.
 
+You can also show the Telegram bot: open [@TapFlowSomniaBot](https://t.me/TapFlowSomniaBot), send `/window` for the live book and `/board` for the leaderboard, and press the menu button to open the mini-app.
+
 Before demoing, run `npm run doctor` — it prints wallets, the vault, the handler's gas tank, the subscription, the live books and the indexer in one screen.

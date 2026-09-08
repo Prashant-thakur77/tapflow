@@ -89,10 +89,26 @@ export async function describeWindow(st: ChatState): Promise<{ text: string; kb:
   const ex = getExchange();
   const windows = await listLiveWindows(client);
   const available = cadences(windows, st.asset);
-  const w = pickWindow(windows, st.asset, st.intervalSec, 10);
+  // The short series only run in main trading hours. Rather than answering "no
+  // window" to someone trying the bot for the first time, show the soonest live
+  // one for this asset, then any asset, and say that is what happened.
+  let w = pickWindow(windows, st.asset, st.intervalSec, 10);
+  let switched: string | null = null;
+  if (!w && available.length) {
+    st.intervalSec = available[0];
+    w = pickWindow(windows, st.asset, st.intervalSec, 10);
+    if (w) switched = `no ${fmtCadence(st.intervalSec)} … showing the soonest live ${st.asset} window`;
+  }
+  if (!w && windows.length) {
+    const soonest = [...windows].sort((a, b) => a.expiry - b.expiry)[0];
+    st.asset = soonest.asset;
+    st.intervalSec = soonest.intervalSec;
+    w = soonest;
+    switched = `no live ${st.asset} window … showing the soonest one on the venue`;
+  }
   if (!w) {
     return {
-      text: `No live <b>${st.asset} ${fmtCadence(st.intervalSec)}</b> window right now (${windows.length} others live). Try another cadence.`,
+      text: `No live windows on the venue right now. They roll continuously, so try again in a minute — or open the app to watch for the next one.`,
       kb: windowKeyboard(st, available),
     };
   }
@@ -104,6 +120,7 @@ export async function describeWindow(st: ChatState): Promise<{ text: string; kb:
   const q5 = { up: quoteFromBook(book, "UP", toRaw(5)), down: quoteFromBook(book, "DOWN", toRaw(5)) };
 
   const lines = [
+    ...(switched ? [`<i>${esc(switched)}</i>`, ""] : []),
     `🎯 <b>${w.asset} · ${fmtCadence(w.intervalSec)} window</b>  ⏱ <b>${fmtCountdown(secondsLeft(w))}</b> left`,
     `closes ${new Date(w.expiry * 1000).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" })} UTC`,
     "",
