@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 import { CheckCircle2, ExternalLink, Zap } from "lucide-react";
 import { EXPLORER_URL, short } from "./lib/ec";
 import { COPY, COPY_DEPLOYED, MIRROR_VAULT_ABI } from "./lib/copy";
-import { TAPFLOW_API } from "./lib/api";
+import { apiBase, apiReady } from "./lib/api";
 
 interface MirrorRow {
   block: number;
@@ -43,7 +43,7 @@ const Tile: React.FC<{ label: string; value: React.ReactNode; hint?: string }> =
 
 /** The reactivity proof, live: contracts, subscription, and every same-block mirror with both transactions. */
 export const ProofView: React.FC = () => {
-  const { data: proof, isError } = useQuery({ queryKey: ["tf-proof"], queryFn: async () => (await fetch(`${TAPFLOW_API}/api/proof`)).json() as Promise<Proof>, refetchInterval: 15_000, retry: 1 });
+  const { data: proof, isError } = useQuery({ queryKey: ["tf-proof"], queryFn: async () => { await apiReady; return (await fetch(`${apiBase()}/api/proof`)).json() as Promise<Proof>; }, refetchInterval: 15_000, retry: 1 });
   const handlerBal = useBalance({ address: COPY.copyHandler, query: { enabled: COPY_DEPLOYED, refetchInterval: 30_000 } });
   const sub = useReadContract({ address: COPY.copyHandler, abi: COPY_HANDLER_ABI, functionName: "subscriptionId", query: { enabled: COPY_DEPLOYED } });
   const leaderFollowers = useReadContract({ address: COPY.vault, abi: MIRROR_VAULT_ABI, functionName: "followerCount", args: proof?.latest[0] ? [proof.latest[0].leader as `0x${string}`] : undefined, query: { enabled: COPY_DEPLOYED && !!proof?.latest[0] } });

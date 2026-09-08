@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useAccount } from "wagmi";
 import toast from "react-hot-toast";
-import { TAPFLOW_API, EXPLORER_URL } from "../lib/api";
+import { apiBase, apiReady, EXPLORER_URL } from "../lib/api";
 
 interface MirrorRow {
   block: number;
@@ -27,7 +27,8 @@ export function useMirrorAlerts() {
     const me = address.toLowerCase();
     const poll = async () => {
       try {
-        const rows = (await (await fetch(`${TAPFLOW_API}/api/mirrors?limit=50`)).json()) as MirrorRow[];
+        await apiReady;
+        const rows = (await (await fetch(`${apiBase()}/api/mirrors?limit=50`)).json()) as MirrorRow[];
         if (stop) return;
         const mine = rows.filter((r) => r.follower.toLowerCase() === me);
         if (seen.current === null) {

@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
 import { Bot, ExternalLink, Share2, UserPlus } from "lucide-react";
 import { addressUrl, fmtCadence, short, txUrl } from "./lib/ec";
-import { TAPFLOW_API, getLeader, type Leader } from "./lib/api";
+import { apiBase, getLeader, type Leader } from "./lib/api";
 import { COPY_DEPLOYED } from "./lib/copy";
 import { useFollowerCount } from "./tap/useCopy";
 import { FollowModal } from "./tap/FollowModal";
@@ -132,7 +132,7 @@ export const LeaderView: React.FC = () => {
           )}
         </section>
         <div className="text-[11px] text-bn-text-muted">
-          Share card: <a className="text-accent-soft" href={`${TAPFLOW_API}/api/og/leader/${address}`} target="_blank" rel="noreferrer">/api/og/leader/{short(address)}</a> · <Link to="/leaders" className="text-accent-soft">back to leaderboard</Link>
+          Share card: <a className="text-accent-soft" href={`${apiBase()}/api/og/leader/${address}`} target="_blank" rel="noreferrer">/api/og/leader/{short(address)}</a> · <Link to="/leaders" className="text-accent-soft">back to leaderboard</Link>
         </div>
         <FollowModal leader={open ? { address, label: data?.label } : null} onClose={() => setOpen(false)} onFollowed={() => me && followMut.mutate({ follower: me, leader: address })} />
       </div>

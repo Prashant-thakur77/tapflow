@@ -1,12 +1,34 @@
 // TapFlow indexer (F4) client — the leaderboard, live stats and agent feed.
 // Base URL from VITE_TAPFLOW_API (default the local indexer).
 
-const BASE =
+const BUILD_BASE =
   ((import.meta as unknown as { env?: Record<string, string | undefined> }).env?.VITE_TAPFLOW_API ??
     "http://localhost:8787").replace(/\/$/, "");
 
 export const EXPLORER_URL = "https://shannon-explorer.somnia.network";
-export const TAPFLOW_API = BASE;
+
+// The indexer runs behind a quick tunnel whose hostname changes on restart. In
+// production the app reads the current URL from api-url.json in the repo at
+// runtime (published by scripts/tunnel.sh), so a tunnel restart never needs a
+// rebuild. Local dev keeps the build-time value.
+const API_URL_JSON = "https://raw.githubusercontent.com/Prashant-thakur77/tapflow/main/api-url.json";
+let base = BUILD_BASE;
+export function apiBase(): string {
+  return base;
+}
+export const apiReady: Promise<string> = (async () => {
+  if (/localhost|127\.0\.0\.1/.test(BUILD_BASE)) return base;
+  try {
+    const r = await fetch(`${API_URL_JSON}?t=${Math.floor(Date.now() / 60_000)}`, { signal: AbortSignal.timeout(4000) });
+    const j = (await r.json()) as { api?: string };
+    if (typeof j.api === "string" && /^https?:\/\//.test(j.api)) base = j.api.replace(/\/$/, "");
+  } catch {
+    /* keep the build-time base */
+  }
+  return base;
+})();
+/** @deprecated read `apiBase()` after `await apiReady` — kept for synchronous render paths. */
+export const TAPFLOW_API = BUILD_BASE;
 
 export interface Stats {
   wallets: number;
@@ -78,7 +100,8 @@ export interface MarketPositions {
 }
 
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`);
+  await apiReady;
+  const res = await fetch(`${base}${path}`);
   if (!res.ok) throw new Error(`${path} → ${res.status}`);
   return res.json() as Promise<T>;
 }
@@ -114,7 +137,8 @@ export const getFollowerClaimables = (address: string) => get<FollowerClaimable[
 export const getMarketPositions = (marketId: string) => get<MarketPositions>(`/api/market/${marketId}/positions`);
 
 export async function follow(followerAddr: string, leaderAddr: string): Promise<void> {
-  const res = await fetch(`${BASE}/api/follow`, {
+  await apiReady;
+  const res = await fetch(`${base}/api/follow`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ follower: followerAddr, leader: leaderAddr }),
@@ -123,4 +147,4 @@ export async function follow(followerAddr: string, leaderAddr: string): Promise<
 }
 
 export const ogTapUrl = (title: string, sub: string, tone: "win" | "loss" | "flat") =>
-  `${BASE}/api/og?title=${encodeURIComponent(title)}&sub=${encodeURIComponent(sub)}&tone=${tone}`;
+  `${base}/api/og?title=${encodeURIComponent(title)}&sub=${encodeURIComponent(sub)}&tone=${tone}`;

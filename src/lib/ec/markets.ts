@@ -5,7 +5,7 @@
 // every one on its on-chain status (the indexer lags by seconds and only
 // status 1 = Trading accepts orders).
 
-import { TAPFLOW_API } from "../api";
+import { apiBase, apiReady } from "../api";
 import type { SomniaMarketsClient, MarketOnchain } from "@somnia-chain/markets-sdk";
 import type { Address, Hex } from "viem";
 import { VENUE_ID } from "./config";
@@ -111,7 +111,8 @@ interface ChainWindowRow {
 
 /** Windows from our own indexer's chain scan (`/api/windows`), already verified Trading on-chain. */
 async function listLiveWindowsFallback(opts: { asset?: Asset } = {}): Promise<TapWindow[]> {
-  const res = await fetch(`${TAPFLOW_API}/api/windows`);
+  await apiReady;
+  const res = await fetch(`${apiBase()}/api/windows`);
   if (!res.ok) throw new Error(`fallback /api/windows → ${res.status}`);
   const rows = (await res.json()) as ChainWindowRow[];
   return rows
