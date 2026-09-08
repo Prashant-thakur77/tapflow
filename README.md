@@ -129,11 +129,13 @@ flowchart LR
 
 ## Live stats
 
-Served by the indexer (`GET /api/stats`, `/api/leaderboard`, `/api/windows`, `/api/proof`), read from chain with no key. Observed on 8 Sep 2026:
+Served by the indexer (`GET /api/stats`, `/api/leaderboard`, `/api/windows`, `/api/proof`), read from chain with no key. Observed on 8 Sep 2026 after an overnight TapBot run:
 
 | wallets | taps indexed | volume (tUSDC) | windows | reactive mirrors | same block |
 |---|---|---|---|---|---|
-| 89 | 466 | 8,199 | 58 | 8 | 8 of 8 |
+| 156 | 1,418 | 25,679 | 200 | 51 | 51 of 51 |
+
+25 of those mirrors filled; the other 26 were declined by the vault because the follower's remaining budget or max-loss cap could not cover them — the reactive call still landed in the leader's block. That is the safety rail working, and it is visible on the proof page.
 
 ## Architecture
 
