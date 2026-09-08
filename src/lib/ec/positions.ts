@@ -81,7 +81,23 @@ export async function claim(ex: SomniaMarkets, pos: Claimable) {
  * the rest. Adapted from dreamdex-bot-kit's claim sweep (MIT, DreamDEX S.A.).
  */
 export async function claimAll(ex: SomniaMarkets, positions: Claimable[]): Promise<{ claimed: number; hash?: Hex }> {
-  const winners = positions.filter((p) => p.amount > 0n && p.estPayout > 0n);
+  // The claimable list is indexer-backed and can offer a position that was
+  // already redeemed; redeeming it reverts and still costs gas. Confirm on chain.
+  const checked = await Promise.all(
+    positions
+      .filter((p) => p.amount > 0n && p.estPayout > 0n)
+      .map(async (p) => {
+        try {
+          const oc = await ex.client.getMarketOnchain(p.marketId as Hex);
+          const held = await ex.client.getOutcomeBalance({ outcomeToken: oc.outcomeToken, account: ex.walletAddress!, id: p.outcomeIdx === 0 ? oc.yesId : oc.noId });
+          if (held === 0n) return null;
+          return held < p.amount ? { ...p, amount: held } : p;
+        } catch {
+          return null;
+        }
+      }),
+  );
+  const winners = checked.filter((p): p is Claimable => p !== null);
   if (!winners.length) return { claimed: 0 };
   try {
     const res = await ex.trader.redeemMany({ entries: winners.map((p) => ({ marketId: p.marketId as Hex, outcomeIdx: p.outcomeIdx, amount: p.amount })) });

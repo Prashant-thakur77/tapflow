@@ -67,7 +67,23 @@ export async function maybeClaim(ex: SomniaMarkets, opts: { intervalMs?: number;
     console.warn(`getClaimable failed (${(e as Error).message.slice(0, 60)}) — reading claimables from chain`);
     claimable = await claimableFromChain(ex, addr);
   }
-  const winners = claimable.filter((c) => c.amount > 0n && c.estPayout > 0n);
+  // The SDK's list is indexer-backed and goes stale: it keeps offering positions
+  // that were already redeemed, and each of those is a reverted transaction that
+  // still costs gas. Confirm every one against the chain first.
+  const winners = (await Promise.all(
+    claimable
+      .filter((c) => c.amount > 0n && c.estPayout > 0n)
+      .map(async (c) => {
+        try {
+          const oc = await ex.client.getMarketOnchain(c.marketId as Hex);
+          const held = await ex.client.getOutcomeBalance({ outcomeToken: oc.outcomeToken, account: addr, id: c.outcomeIdx === 0 ? oc.yesId : oc.noId });
+          if (held === 0n) return null;
+          return held < c.amount ? { ...c, amount: held } : c;
+        } catch {
+          return null;
+        }
+      }),
+  )).filter((c): c is ClaimablePosition => c !== null);
   if (!winners.length) return { claimed: 0, payoutUsdc: "0" };
 
   const payout = winners.reduce((s, c) => s + c.estPayout, 0n);
