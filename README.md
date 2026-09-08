@@ -180,6 +180,10 @@ npx tsx scripts/tap.ts BTC 5m UP 1
 
 # preflight before a demo (read-only)
 npm run doctor
+
+# keep the indexer reachable from the deployed app: a quick tunnel whose URL is
+# published to api-url.json (the app reads it at runtime, no rebuild needed)
+nohup scripts/tunnel.sh > tunnel.log 2>&1 &
 ```
 
 ## Status: honest scope

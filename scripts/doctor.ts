@@ -6,6 +6,8 @@
 // The shape follows dreamdex-bot-kit/scripts/ec-doctor.ts (MIT, Copyright DreamDEX S.A.).
 
 import "dotenv/config";
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
 import { createPublicClient, formatEther, formatUnits, http, parseAbi } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { COLLATERAL, EXPLORER_URL, getClient, listLiveWindows, quoteFromBook, readGrid, secondsLeft, somniaShannon, toRaw } from "../src/lib/ec";
@@ -19,6 +21,13 @@ const ERC20 = parseAbi(["function balanceOf(address) view returns (uint256)"]);
 const VAULT = parseAbi(["function available(address) view returns (uint256)", "function followerCount(address) view returns (uint256)", "function follows(address) view returns (address leader, uint32 ratioBps, uint256 maxLoss, uint256 deposited, uint256 spent, bool active)"]);
 const HANDLER = parseAbi(["function subscriptionId() view returns (uint256)"]);
 const api = process.env.TAPFLOW_API ?? "http://localhost:8787";
+const published = (() => {
+  try {
+    return JSON.parse(require("node:fs").readFileSync("api-url.json", "utf8")).api as string;
+  } catch {
+    return "";
+  }
+})();
 
 async function wallet(label: string, pk?: string) {
   if (!pk) return console.log(`${pad(label, 10)} (not set)`);
@@ -73,6 +82,14 @@ try {
   console.log(`${api}  ✓  cursor ${h.lastBlock ?? "?"} · mirrors ${proof.mirrors} (${proof.sameBlock} same block) · broadcasts ${proof.broadcasts}`);
 } catch (e) {
   console.log(`${api}  ✗ ${(e as Error).message}`);
+}
+if (published) {
+  try {
+    const r = await fetch(`${published}/api/health`, { signal: AbortSignal.timeout(10_000) });
+    console.log(`${published} (api-url.json)  ${ok(r.ok)} ${r.status}`);
+  } catch {
+    console.log(`${published} (api-url.json)  ✗ unreachable — restart scripts/tunnel.sh`);
+  }
 }
 try {
   const r = await fetch("https://tapflow-phi.vercel.app/", { method: "HEAD" });
