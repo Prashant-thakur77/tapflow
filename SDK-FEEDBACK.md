@@ -205,3 +205,13 @@ node pads 2–5× and should be trusted over any client-side estimate.
 **What was awkward.** A contract has no way to learn `operatorId` and `venueId` on-chain: they exist only in the `MarketCreated` log and in the indexer rows. `getBinaryPoolParams()` carries the collateral, outcome token and ids but not the routing ids the module wants back. We hard-wire them with `setVenue` from the owner, which is fine for one venue and wrong for a vault that should serve several.
 
 **Ask.** Expose `(operatorId, venueId, marketId)` from the pool or the market contract (a `marketConfig()` view), or accept a pool-address-keyed `redeem` on the module. Also worth documenting explicitly: a contract must be an ERC-6909 operator-approver for the module before `redeem`, and `redeem` on a losing side reverts rather than paying zero — good behaviour, but not stated in the SDK docs.
+
+## 20. `getClaimable` keeps offering positions that were already redeemed
+
+**What happened.** Our agent auto-claims every loop. After a successful `redeemMany`, `client.getClaimable(wallet)` kept returning one of the same positions — `{ marketId …0168cc, outcomeIdx 1, amount 1.104, estPayout 1.104 }` — while `getOutcomeBalance` for both of that market's outcome ids read **0**. Each retry was a real transaction that reverted with `InsufficientBalance()`, so the wallet paid gas for nothing, once per sweep, indefinitely.
+
+**Why it matters.** The obvious loop — "list claimables, redeem them" — is exactly what the docs suggest, and it burns gas forever on a stale row. A bot that trades unattended overnight (ours did) pays for every cycle.
+
+**What we did.** Every claimable is now re-checked against `getOutcomeBalance` before it is redeemed, and the amount is clamped to the balance actually held (`agent/src/claim.ts`, `src/lib/ec/positions.ts`).
+
+**Ask.** Derive `getClaimable` from the outcome-token balance rather than from indexed fills, or at least drop rows whose balance is zero. Failing that, say in the doc comment that the list is indexer-derived and must be confirmed on chain before a write.

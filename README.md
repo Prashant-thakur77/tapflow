@@ -37,7 +37,7 @@ Prediction markets are solo and clunky: connect, approve, read an order book, si
 | **F4** | Fills indexer + leaderboard API | ✅ live | 47 wallets / 177 taps / 3.6k tUSDC indexed from chain |
 | **F5** | TapBot momentum agent | ✅ **live as a public leader** | 50+ real taps overnight, 25 on-chain copies, a 30W/22L settled record on the board, and its winnings auto-claimed in three `redeemMany` sweeps. v2 runs a risk gate with reason codes (max 90¢/share, edge over the book's spread, one tap per window, cooldown, near-expiry stop), trades the shortest live cadence, auto-claims winnings each loop, and publishes its holds to the feed so followers see *why* it waited |
 | **F6** | Telegram bot + mini-app | ✅ built | `tsc` clean, live `/window` odds path verified |
-| **F7** | README + SDK feedback | ✅ this file + `SDK-FEEDBACK.md` | 19 measured items |
+| **F7** | README + SDK feedback | ✅ this file + `SDK-FEEDBACK.md` | 20 measured items |
 | **+** | Markets grid, live venue ticker, settled strip, pro drawer | ✅ live | [/markets](https://tapflow-phi.vercel.app/markets) — every window as a card with odds, countdown and payout-on-chip quick taps |
 | **+** | Proof page + leader profiles + agent strip | ✅ live | [/proof](https://tapflow-phi.vercel.app/proof) — the indexer pairs every reactive mirror with its broadcast (8/8 same block); `/leader/:address` |
 | **+** | Chain-indexed fills | ✅ live | the upstream tape lagged 100 min and missed wallets, so fills are read from pool logs (`OrderPlaced` + `OrderFilled`) |
