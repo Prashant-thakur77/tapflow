@@ -78,6 +78,26 @@ CopyHandler     — SomniaEventHandler on PositionOpened → follower order same
 RiskGuard       — SomniaEventHandler on follower fills → close at maxLoss
 ```
 
+### Why a mirror can place nothing (v4)
+
+A mirror is a real IOC on the same book the leader just traded. `MirrorVault.mirrorWithReason`
+returns `(placed, reason)` and `CopyHandler` puts the reason in the `Mirrored` event:
+
+| code | meaning |
+|---|---|
+| 0 | filled |
+| 1 | the follower is not following (or was paused) |
+| 2 | size below the venue lot after the ratio |
+| 3 | the follower's max-loss cap refused it (also emits `FollowerCapped`) |
+| 4 | no budget left in the vault |
+| 5 | the pool rejected the order — no liquidity at the price |
+| 6 | the vault call reverted (never expected; caught so one follower cannot cost the owner the block) |
+
+The cushion: the follower bids `min(price × (1 + slippageBps), price + 5 points, 0.97)`
+on the leg they are buying, snapped to the grid, and never below the leader's own
+price. Default 1500 bps, per-follower via `setFollowWithSlippage` / `setSlippage`,
+hard-capped at 5000.
+
 ### Settlement for followers (v3)
 
 The vault is `msg.sender` on every mirrored order, so the pool credits the

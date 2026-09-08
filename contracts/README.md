@@ -62,16 +62,26 @@ It prints the subscription ids and writes `deployments.json` (addresses + ids),
 which the web app and indexer read. Put `router` into the agent's `ROUTER_ADDRESS`
 and the app's `VITE_ROUTER_ADDRESS` to light up the in-block mirror.
 
-## Deployed on Shannon (v3, 8 Sep 2026)
+## Deployed on Shannon (v4, 8 Sep 2026)
 
 | Contract | Address |
 |---|---|
 | Router | `0x512009743f48A924F679907ca9E206b706d499Cc` |
-| MirrorVault v3 | `0x1a9c46409a34511e05E0552618b81C818D5f0C12` — per-follower shares, `redeem`/`redeemMany` via the module |
-| CopyHandler v3 | `0x515d5186314Ac4956F08D11B5Aab55Cd5169920d` — subscription **16791404**, funded 33 STT |
-| RiskGuard v3 | `0xA8a1FD962f1470c7b19D55fa740E00463a9B4b99` — wired; subscription pending 32 STT |
+| MirrorVault v4 | `0x535A2F473f073AB27FAd8F65ECD5Fe1203C8aE95` — shares + module redeem, bounded price cushion, lot-grid sizing, reason codes |
+| CopyHandler v4 | `0x969B4F8c0106379b553232D9aFcf35B77F32b321` — subscription **16910004**, funded 33 STT |
+| RiskGuard v4 | `0x03A52EE60b30537fa57C889795576E63CFCaE3b7` — wired, triggered by `FollowerCapped`; subscription pending 32 STT |
 
-v3 adds settlement for followers: `setVenue(module, operatorId, venueId)` and
+v4 makes mirrors fill. The leader's own IOC consumes the book at their limit, so a
+follower priced identically gets nothing: `mirror` now bids a cushion (15% of the
+leg, at most 5 points, never above 0.97, never below the leader's own price),
+floors the quantity to the venue's lot, and returns a reason code that
+`CopyHandler` writes into `Mirrored`. Reason codes: 0 filled, 1 not following,
+2 size below the lot, 3 max-loss cap, 4 no budget, 5 no liquidity at the price,
+6 vault call reverted. Because the vault refuses any order that would cross the
+cap, `spent` never reaches `maxLoss`; the refusal emits `FollowerCapped` and
+`RiskGuard` subscribes to that instead of `FollowerFilled`.
+
+v3 added settlement for followers: `setVenue(module, operatorId, venueId)` and
 `approveOutcomeToken(outcomeToken)` (ERC-6909 `setOperator` for the module) are
 called once by the owner; then anyone can call `redeem(follower, marketId,
 outcomeIdx, amount)` on a settled window and the payout lands in the follower's
