@@ -38,6 +38,8 @@ const VAULTS: Hex[] = [...new Set([deployments?.mirrorVault, "0x1a9c46409a34511e
 const START_BLOCK = Number(process.env.MIRRORS_START_BLOCK ?? 482_310_000);
 const CHUNK = 1000n;
 const MAX_CHUNKS_PER_SYNC = Number(process.env.MIRRORS_MAX_CHUNKS ?? 40);
+const PASS_MS = Number(process.env.MIRRORS_PASS_MS ?? 30_000);
+const CONCURRENCY = Number(process.env.MIRRORS_CONCURRENCY ?? 8);
 
 const MIRRORED = parseAbiItem("event Mirrored(address indexed follower,address indexed leader,bytes32 indexed marketId,uint8 side,uint256 qty,bool success)");
 /** v4 adds an on-chain reason code for a mirror that placed nothing. */
@@ -91,8 +93,13 @@ export async function syncMirrors(): Promise<void> {
   let from = Number(getMeta("mirrors_cursor") ?? START_BLOCK);
   let chunks = 0;
   let added = 0;
-  while (from <= head && chunks < MAX_CHUNKS_PER_SYNC) {
-    const to = Math.min(from + Number(CHUNK) - 1, head);
+  const deadline = Date.now() + PASS_MS;
+  const budget = head - from > 50_000 ? Number.MAX_SAFE_INTEGER : MAX_CHUNKS_PER_SYNC;
+  while (from <= head && chunks < budget && Date.now() < deadline) {
+    // Widen the window when far behind so a fresh host backfills in minutes.
+    const span = Math.min(Number(CHUNK) * (head - from > 50_000 ? CONCURRENCY : 1), head - from + 1);
+    const to = Math.min(from + span - 1, head);
+    chunks += Math.ceil(span / Number(CHUNK)) - 1;
     const [opened, mirrored, filled] = await Promise.all([
       pc.getLogs({ address: deployments.router, event: OPENED, fromBlock: BigInt(from), toBlock: BigInt(to) }),
       pc.getLogs({ address: HANDLERS, event: MIRRORED, fromBlock: BigInt(from), toBlock: BigInt(to) }).then(async (v1) => {
@@ -122,6 +129,7 @@ export async function syncMirrors(): Promise<void> {
     tx();
     from = to + 1;
     chunks++;
+    setMeta("mirrors_cursor", String(from));
   }
   setMeta("mirrors_cursor", String(from));
   if (added) log(`mirrors: +${added} events, cursor ${from}/${head}`);

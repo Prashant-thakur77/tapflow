@@ -29,6 +29,15 @@ const EV_FILLED = parseAbiItem(
 const START_BLOCK = Number(process.env.CHAINFILLS_START_BLOCK ?? 482_300_000);
 const CHUNK = 1000;
 const MAX_CHUNKS = Number(process.env.CHAINFILLS_MAX_CHUNKS ?? 30);
+/** Chunks fetched at once. Backfilling is round-trip bound, not compute bound:
+ *  a fresh host is half a million blocks behind and one chunk at a time takes
+ *  a quarter of an hour. The RPC refuses a range wider than 1000 blocks, so
+ *  concurrency is the only lever. Applied strictly in order regardless. */
+const CONCURRENCY = Number(process.env.CHAINFILLS_CONCURRENCY ?? 12);
+/** A pass runs for at most this long, then saves where it got to and returns.
+ *  Time-boxing beats a chunk count: it is the same on a fast laptop and a slow
+ *  free host, and it can never trip the sync watchdog. */
+const PASS_MS = Number(process.env.CHAINFILLS_PASS_MS ?? 100_000);
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS pool_orders (
@@ -68,9 +77,24 @@ export async function syncChainFills(): Promise<void> {
   let from = chainFillsCursor;
   let chunks = 0;
   let added = 0;
-  while (from <= head && chunks < MAX_CHUNKS) {
-    const to = Math.min(from + CHUNK - 1, head);
-    const logs = (await pc.getLogs({ address: pools, events: [EV_PLACED, EV_KIND, EV_FILLED], fromBlock: BigInt(from), toBlock: BigInt(to) })) as (Log & { eventName?: string; args?: Args })[];
+  const behind = head - from;
+  const deadline = Date.now() + PASS_MS;
+  // Caught up: a few chunks is plenty. Far behind (a fresh host): keep going
+  // until the time box runs out, saving the cursor as we go.
+  const budget = behind > 50_000 ? Number.MAX_SAFE_INTEGER : MAX_CHUNKS;
+  while (from <= head && chunks < budget && Date.now() < deadline) {
+    // Fetch the next few chunks together, then apply them oldest-first.
+    const spans: { from: number; to: number }[] = [];
+    for (let i = 0; i < CONCURRENCY && from + i * CHUNK <= head && chunks + i < budget; i++) {
+      const f = from + i * CHUNK;
+      spans.push({ from: f, to: Math.min(f + CHUNK - 1, head) });
+    }
+    const batches = await Promise.all(
+      spans.map((sp) => pc.getLogs({ address: pools, events: [EV_PLACED, EV_KIND, EV_FILLED], fromBlock: BigInt(sp.from), toBlock: BigInt(sp.to) })),
+    );
+    for (let bi = 0; bi < spans.length; bi++) {
+    const to = spans[bi].to;
+    const logs = batches[bi] as (Log & { eventName?: string; args?: Args })[];
     logs.sort((a, b) => Number(a.blockNumber! - b.blockNumber!) || (a.logIndex ?? 0) - (b.logIndex ?? 0));
 
     // 1) who placed what
@@ -109,6 +133,10 @@ export async function syncChainFills(): Promise<void> {
 
     from = to + 1;
     chunks++;
+    }
+    // Persist after every batch: a timeout or a restart must never lose the work.
+    chainFillsCursor = from;
+    setMeta("chainfills_cursor", String(from));
   }
   chainFillsCursor = from;
   setMeta("chainfills_cursor", String(from));

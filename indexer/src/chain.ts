@@ -107,7 +107,7 @@ async function oraclePrices(marketId: string): Promise<{ open: number | null; cl
 
 let running = false;
 let runningSince = 0;
-const SYNC_WATCHDOG_MS = 4 * 60_000;
+const SYNC_WATCHDOG_MS = 10 * 60_000;
 export let lastSync = { at: 0, live: 0, settled: 0, newFills: 0, error: "" };
 
 /** Reject after `ms` — an upstream call hung for hours once and froze the loop. */
@@ -188,7 +188,7 @@ export async function syncOnce(): Promise<void> {
     ["chain fills", syncChainFills],
   ] as const) {
     try {
-      await withTimeout(Promise.resolve(fn()).then(() => undefined), 120_000, name);
+      await withTimeout(Promise.resolve(fn()).then(() => undefined), 150_000, name);
     } catch (e) {
       log(`${name} sync failed: ${String(e).slice(0, 160)}`);
     }

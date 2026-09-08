@@ -21,6 +21,8 @@ const EV_CREATED = parseAbiItem(
 );
 const CHUNK = 1000;
 const MAX_CHUNKS = Number(process.env.NEWMARKETS_MAX_CHUNKS ?? 40);
+const PASS_MS = Number(process.env.NEWMARKETS_PASS_MS ?? 30_000);
+const WIDE = Number(process.env.NEWMARKETS_WIDE ?? 8);
 /** First run: look back this many blocks (~1h at Somnia's pace) instead of the whole chain. */
 const LOOKBACK = Number(process.env.NEWMARKETS_LOOKBACK ?? 40_000);
 
@@ -65,8 +67,12 @@ export async function syncMarketsFromChain(): Promise<number> {
   let from = marketsCursor;
   let chunks = 0;
   let added = 0;
-  while (from <= head && chunks < MAX_CHUNKS) {
-    const to = Math.min(from + CHUNK - 1, head);
+  const deadline = Date.now() + PASS_MS;
+  const budget = head - from > 50_000 ? Number.MAX_SAFE_INTEGER : MAX_CHUNKS;
+  while (from <= head && chunks < budget && Date.now() < deadline) {
+    const span = Math.min(CHUNK * (head - from > 50_000 ? WIDE : 1), head - from + 1);
+    const to = Math.min(from + span - 1, head);
+    chunks += Math.ceil(span / CHUNK) - 1;
     const logs = await pc.getLogs({ address: BINARY_MODULE, event: EV_CREATED, fromBlock: BigInt(from), toBlock: BigInt(to) });
     for (const l of logs) {
       const a = l.args as { marketId: Hex; pool: Hex; venueId: Hex };
@@ -85,6 +91,8 @@ export async function syncMarketsFromChain(): Promise<number> {
     }
     from = to + 1;
     chunks++;
+    marketsCursor = from;
+    setMeta("newmarkets_cursor", String(from));
   }
   marketsCursor = from;
   setMeta("newmarkets_cursor", String(from));
