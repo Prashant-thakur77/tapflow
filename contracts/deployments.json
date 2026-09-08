@@ -1,16 +1,16 @@
 {
   "chainId": 50312,
   "router": "0x512009743f48A924F679907ca9E206b706d499Cc",
-  "mirrorVault": "0x1a9c46409a34511e05E0552618b81C818D5f0C12",
-  "copyHandler": "0x515d5186314Ac4956F08D11B5Aab55Cd5169920d",
-  "riskGuard": "0xA8a1FD962f1470c7b19D55fa740E00463a9B4b99",
+  "mirrorVault": "0x535A2F473f073AB27FAd8F65ECD5Fe1203C8aE95",
+  "copyHandler": "0x969B4F8c0106379b553232D9aFcf35B77F32b321",
+  "riskGuard": "0x03A52EE60b30537fa57C889795576E63CFCaE3b7",
   "collateral": "0x70a86D8842FB63C4Ad2b7cdddF530eBf1BB25d8E",
   "subscriptions": {
-    "copyHandler": "16791404",
+    "copyHandler": "16910004",
     "riskGuard": "0"
   },
-  "deployedAt": "2026-09-07T20:52:00Z",
-  "note": "v3: MirrorVault tracks per-follower shares and redeems settled winnings through the BinaryMarketsModule (redeem/redeemMany), crediting the follower's deposit. v2 (vault 0x4d5F2384\u2026, handler 0x2Fff45dF\u2026 sub 16764091, guard 0x8E6Fe05F\u2026) retired: 33 STT recycled into the v3 subscription. v1 vault 0xF5fc0897\u2026, handler 0x63Ed0a42\u2026 (sub 16760441).",
+  "deployedAt": "2026-09-08T08:05:00Z",
+  "note": "v4: mirrors pay a bounded cushion over the leader's limit (15% of the leg, max 5 points, never above 0.97) because the leader's own IOC consumes the book at their price; quantities are floored to the venue lot; every skipped mirror carries an on-chain reason code; RiskGuard now fires on FollowerCapped (the cap refuses before `spent` can reach `maxLoss`). v3 kept per-follower shares + module redeem. All earlier versions readable on the explorer.",
   "venue": {
     "module": "0x3ecC694Cef705358864a646142ac17A90E29e388",
     "operatorId": 2,
@@ -28,6 +28,12 @@
       "mirrorVault": "0xF5fc089748604722ADa350599a8afBAFb0A6aB0A",
       "copyHandler": "0x63Ed0a4242FD11A9A9296F8D8bDCd39D2E90c9c1",
       "subscription": "16760441"
+    },
+    "v3": {
+      "mirrorVault": "0x1a9c46409a34511e05E0552618b81C818D5f0C12",
+      "copyHandler": "0x515d5186314Ac4956F08D11B5Aab55Cd5169920d",
+      "riskGuard": "0xA8a1FD962f1470c7b19D55fa740E00463a9B4b99",
+      "subscription": "16791404"
     }
   }
 }

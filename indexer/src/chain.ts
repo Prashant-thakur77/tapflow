@@ -188,7 +188,7 @@ export async function syncOnce(): Promise<void> {
     ["chain fills", syncChainFills],
   ] as const) {
     try {
-      await withTimeout(fn(), 120_000, name);
+      await withTimeout(Promise.resolve(fn()).then(() => undefined), 120_000, name);
     } catch (e) {
       log(`${name} sync failed: ${String(e).slice(0, 160)}`);
     }

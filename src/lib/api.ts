@@ -123,6 +123,21 @@ export const getFeed = (limit = 30) => get<FeedItem[]>(`/api/feed?limit=${limit}
 export const getLeader = (address: string) => get<Leader & { recent: unknown[] }>(`/api/leader/${address}`);
 export const getRecent = (limit = 30) => get<RecentFill[]>(`/api/recent?limit=${limit}`);
 export const getSettled = (asset = "", intervalSec = 0, limit = 12) => get<SettledWindow[]>(`/api/settled?asset=${asset}&intervalSec=${intervalSec}&limit=${limit}`);
+export interface MirrorRowApi {
+  block: number;
+  reactiveTx: string;
+  broadcastTx: string | null;
+  sameBlock: boolean;
+  follower: string;
+  leader: string;
+  side: "UP" | "DOWN";
+  qty: number;
+  cost: number | null;
+  success: boolean;
+  reason?: number | null;
+  reasonText?: string | null;
+}
+
 export interface FollowerClaimable {
   marketId: string;
   outcomeIdx: 0 | 1;

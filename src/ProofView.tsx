@@ -19,6 +19,8 @@ interface MirrorRow {
   qty: number;
   cost: number | null;
   success: boolean;
+  reason?: number | null;
+  reasonText?: string | null;
 }
 interface Proof {
   broadcasts: number;
@@ -59,9 +61,8 @@ export const ProofView: React.FC = () => {
           <p className="text-xs sm:text-sm text-bn-text-dim mt-2 max-w-2xl leading-relaxed">
             A leader broadcasts a tap through <code>Router</code>. Somnia validators deliver that event to <code>CopyHandler</code> as a synthetic
             transaction <b>in the same block</b>, and it places every follower's order through <code>MirrorVault</code>. No keeper, no relayer, no
-            next-block lag. Every row below is read from chain by the indexer; every link opens the explorer. A <span className="text-amber">capped</span> row is
-            the safety rail working: the reactive call still landed in the leader's block, and the vault declined the order because that follower's remaining
-            budget or max-loss cap could not cover it.
+            next-block lag. Every row below is read from chain by the indexer; every link opens the explorer. An amber row means the reactive call landed in the leader's block but the order did not, and the vault says
+            why on chain: the leader's own order took the book at that price, the follower's max-loss cap refused it, or their budget ran out.
           </p>
         </div>
 
@@ -133,8 +134,11 @@ export const ProofView: React.FC = () => {
                         ) : m.success ? (
                           <span className="text-amber">mirrored</span>
                         ) : (
-                          <span className="text-amber" title="the vault refused this mirror: the follower's remaining budget or max-loss cap could not cover it. The reactive transaction still landed in the leader's block.">
-                            capped
+                          <span
+                            className="text-amber"
+                            title={`The reactive call landed in the leader's block; the order did not. Reason from the contract: ${m.reasonText ?? "not recorded (pre-v4 handler)"}.`}
+                          >
+                            {m.reasonText && m.reasonText !== "filled" ? m.reasonText : "no fill"}
                           </span>
                         )}
                       </td>

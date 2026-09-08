@@ -45,6 +45,9 @@ const intervalSec = cadence.endsWith("h") ? parseInt(cadence) * 3600 : parseInt(
 
 const ROUTER_ABI = parseAbi(["function broadcast(bytes32 marketId,address pool,uint8 side,uint256 qty,uint256 price,uint64 expiryNs)"]);
 const MIRRORED = parseAbiItem("event Mirrored(address indexed follower,address indexed leader,bytes32 indexed marketId,uint8 side,uint256 qty,bool success)");
+// v4 adds an on-chain reason code, which changes topic0 — scan for both.
+const MIRRORED_V4 = parseAbiItem("event Mirrored(address indexed follower,address indexed leader,bytes32 indexed marketId,uint8 side,uint256 qty,bool success,uint8 reason)");
+const REASONS = ["filled", "not following", "size below the venue lot", "max-loss cap", "no budget left", "no liquidity at the price", "vault call reverted"];
 const FILLED = parseAbiItem("event FollowerFilled(address indexed follower,address indexed leader,bytes32 indexed marketId,uint8 side,uint256 qty,uint256 cost,uint256 spent,uint256 maxLoss)");
 
 const leader = privateKeyToAccount(pk);
@@ -87,7 +90,7 @@ console.log(`\n[2] broadcast     ${txUrl(bhash)}\n    status ${rcpt.status}  blo
 // 3. the reactive mirror: look in the SAME block (and the next, in case of queue spill)
 async function scan(from: bigint, to: bigint) {
   const [m, f] = await Promise.all([
-    pc.getLogs({ address: dep.copyHandler, event: MIRRORED, fromBlock: from, toBlock: to }),
+    pc.getLogs({ address: dep.copyHandler, events: [MIRRORED, MIRRORED_V4], fromBlock: from, toBlock: to }),
     pc.getLogs({ address: dep.mirrorVault, event: FILLED, fromBlock: from, toBlock: to }),
   ]);
   return { m, f };
@@ -101,7 +104,7 @@ if (m.length === 0) {
 }
 console.log(`\n[3] reactive mirror → ${where}`);
 for (const l of m) {
-  console.log(`    Mirrored  follower ${l.args.follower}  qty ${fmtUsdc(l.args.qty!)}  success ${l.args.success}`);
+  console.log(`    Mirrored  follower ${l.args.follower}  qty ${fmtUsdc(l.args.qty!)}  success ${l.args.success}${(l.args as { reason?: number }).reason !== undefined ? `  reason ${REASONS[Number((l.args as { reason?: number }).reason)] ?? (l.args as { reason?: number }).reason}` : ""}`);
   console.log(`              reactive tx ${txUrl(l.transactionHash!)}  block ${l.blockNumber}`);
 }
 for (const l of f) {

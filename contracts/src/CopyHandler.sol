@@ -30,7 +30,8 @@ contract CopyHandler is SomniaEventHandler {
         bytes32 indexed marketId,
         uint8 side,
         uint256 qty,
-        bool success
+        bool success,
+        uint8 reason
     );
 
     error NotOwner();
@@ -87,10 +88,12 @@ contract CopyHandler is SomniaEventHandler {
         for (uint256 i; i < followers.length; ++i) {
             // A single failing follower must not revert the whole reactive tx —
             // the owner would pay for a reverted callback and lose the block.
-            try vault.mirror(followers[i], marketId, pool, side, qty, price, expiryNs) returns (uint256 placed) {
-                emit Mirrored(followers[i], leader, marketId, side, placed, placed > 0);
+            try vault.mirrorWithReason(followers[i], marketId, pool, side, qty, price, expiryNs) returns (uint256 placed, uint8 reason) {
+                emit Mirrored(followers[i], leader, marketId, side, placed, placed > 0, reason);
             } catch {
-                emit Mirrored(followers[i], leader, marketId, side, 0, false);
+                // 6 = the vault call itself reverted (never expected; kept so a bad
+                // follower can never cost the owner the whole reactive block).
+                emit Mirrored(followers[i], leader, marketId, side, 0, false, 6);
             }
         }
     }

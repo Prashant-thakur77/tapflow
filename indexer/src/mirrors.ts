@@ -33,13 +33,15 @@ export const deployments = loadDeployments();
 setCopiesSource(() => copiesByLeader());
 
 /** Every CopyHandler that ever mirrored (v1 escrowed DOWN wrong; kept for the record). */
-const HANDLERS: Hex[] = [...new Set([deployments?.copyHandler, "0x2Fff45dFE73aE60f4Fd24fE25B7C93482DBeF43d" as Hex, "0x63Ed0a4242FD11A9A9296F8D8bDCd39D2E90c9c1" as Hex].filter(Boolean) as Hex[])];
-const VAULTS: Hex[] = [...new Set([deployments?.mirrorVault, "0x4d5F238420452D360D98AF0fA08A33048964a5A5" as Hex, "0xF5fc089748604722ADa350599a8afBAFb0A6aB0A" as Hex].filter(Boolean) as Hex[])];
+const HANDLERS: Hex[] = [...new Set([deployments?.copyHandler, "0x515d5186314Ac4956F08D11B5Aab55Cd5169920d" as Hex, "0x2Fff45dFE73aE60f4Fd24fE25B7C93482DBeF43d" as Hex, "0x63Ed0a4242FD11A9A9296F8D8bDCd39D2E90c9c1" as Hex].filter(Boolean) as Hex[])];
+const VAULTS: Hex[] = [...new Set([deployments?.mirrorVault, "0x1a9c46409a34511e05E0552618b81C818D5f0C12" as Hex, "0x4d5F238420452D360D98AF0fA08A33048964a5A5" as Hex, "0xF5fc089748604722ADa350599a8afBAFb0A6aB0A" as Hex].filter(Boolean) as Hex[])];
 const START_BLOCK = Number(process.env.MIRRORS_START_BLOCK ?? 482_310_000);
 const CHUNK = 1000n;
 const MAX_CHUNKS_PER_SYNC = Number(process.env.MIRRORS_MAX_CHUNKS ?? 40);
 
 const MIRRORED = parseAbiItem("event Mirrored(address indexed follower,address indexed leader,bytes32 indexed marketId,uint8 side,uint256 qty,bool success)");
+/** v4 adds an on-chain reason code for a mirror that placed nothing. */
+const MIRRORED_V4 = parseAbiItem("event Mirrored(address indexed follower,address indexed leader,bytes32 indexed marketId,uint8 side,uint256 qty,bool success,uint8 reason)");
 const OPENED = parseAbiItem("event PositionOpened(address indexed leader,bytes32 indexed marketId,address pool,uint8 side,uint256 qty,uint256 price,uint64 expiryNs)");
 const FILLED = parseAbiItem("event FollowerFilled(address indexed follower,address indexed leader,bytes32 indexed marketId,uint8 side,uint256 qty,uint256 cost,uint256 spent,uint256 maxLoss)");
 
@@ -61,9 +63,11 @@ CREATE INDEX IF NOT EXISTS mirrors_leader ON mirrors(leader);
 CREATE INDEX IF NOT EXISTS mirrors_block ON mirrors(block);
 `);
 
+try { db.exec("ALTER TABLE mirrors ADD COLUMN reason INTEGER"); } catch { /* exists */ }
+
 const st = {
   insB: db.prepare(`INSERT OR IGNORE INTO broadcasts (id,block,txHash,leader,marketId,side,qty,price,ts) VALUES (@id,@block,@txHash,@leader,@marketId,@side,@qty,@price,@ts)`),
-  insM: db.prepare(`INSERT OR IGNORE INTO mirrors (id,block,txHash,handler,follower,leader,marketId,side,qty,success,cost,ts) VALUES (@id,@block,@txHash,@handler,@follower,@leader,@marketId,@side,@qty,@success,@cost,@ts)`),
+  insM: db.prepare(`INSERT OR IGNORE INTO mirrors (id,block,txHash,handler,follower,leader,marketId,side,qty,success,cost,ts,reason) VALUES (@id,@block,@txHash,@handler,@follower,@leader,@marketId,@side,@qty,@success,@cost,@ts,@reason)`),
   setCost: db.prepare(`UPDATE mirrors SET cost = ? WHERE block = ? AND follower = ? AND marketId = ? AND cost IS NULL`),
   list: db.prepare(`SELECT m.*, b.txHash AS broadcastTx, b.price AS broadcastPrice FROM mirrors m
     LEFT JOIN broadcasts b ON b.block = m.block AND b.leader = m.leader AND b.marketId = m.marketId
@@ -91,7 +95,10 @@ export async function syncMirrors(): Promise<void> {
     const to = Math.min(from + Number(CHUNK) - 1, head);
     const [opened, mirrored, filled] = await Promise.all([
       pc.getLogs({ address: deployments.router, event: OPENED, fromBlock: BigInt(from), toBlock: BigInt(to) }),
-      pc.getLogs({ address: HANDLERS, event: MIRRORED, fromBlock: BigInt(from), toBlock: BigInt(to) }),
+      pc.getLogs({ address: HANDLERS, event: MIRRORED, fromBlock: BigInt(from), toBlock: BigInt(to) }).then(async (v1) => {
+        const v4 = await pc.getLogs({ address: HANDLERS, event: MIRRORED_V4, fromBlock: BigInt(from), toBlock: BigInt(to) });
+        return [...v1, ...v4] as (typeof v1[number] & { args: { reason?: number } })[];
+      }),
       pc.getLogs({ address: VAULTS, event: FILLED, fromBlock: BigInt(from), toBlock: BigInt(to) }),
     ]);
     const tx = db.transaction(() => {
@@ -105,6 +112,7 @@ export async function syncMirrors(): Promise<void> {
         added += st.insM.run({
           id: `${l.transactionHash}-${l.logIndex}`, block: Number(l.blockNumber), txHash: l.transactionHash, handler: l.address.toLowerCase(), follower: l.args.follower!.toLowerCase(),
           leader: l.args.leader!.toLowerCase(), marketId: l.args.marketId!.toLowerCase(), side: sideOf(Number(l.args.side)), qty: Number(l.args.qty) / ONE, success: l.args.success ? 1 : 0, cost: null, ts: null,
+          reason: l.args.reason === undefined ? null : Number(l.args.reason),
         }).changes;
       }
       for (const l of filled) {
@@ -119,6 +127,17 @@ export async function syncMirrors(): Promise<void> {
   if (added) log(`mirrors: +${added} events, cursor ${from}/${head}`);
 }
 
+/** MirrorVault v4 reason codes for a mirror that placed nothing. */
+const REASONS: Record<number, string> = {
+  0: "filled",
+  1: "not following",
+  2: "size below the venue lot",
+  3: "max-loss cap",
+  4: "no budget left",
+  5: "no liquidity at the price",
+  6: "vault call reverted",
+};
+
 export function listMirrors(limit = 30) {
   return (st.list.all(limit) as (Record<string, unknown> & { block: number; txHash: string; broadcastTx: string | null; success: number })[]).map((r) => ({
     block: r.block,
@@ -126,6 +145,8 @@ export function listMirrors(limit = 30) {
     broadcastTx: r.broadcastTx,
     sameBlock: !!r.broadcastTx,
     handler: r.handler,
+    reason: r.reason === null || r.reason === undefined ? null : Number(r.reason),
+    reasonText: REASONS[Number(r.reason ?? -1)] ?? null,
     follower: r.follower,
     leader: r.leader,
     marketId: r.marketId,

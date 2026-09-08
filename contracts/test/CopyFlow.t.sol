@@ -88,25 +88,27 @@ contract CopyFlowTest is Test {
     }
 
     function test_mirror_places_proportional_orders() public {
-        // Leader opens 10 UP @ 0.60. Alice 1x → 10 shares (cost 6). Bob 0.5x → 5 (cost 3).
+        // Leader opens 10 UP @ 0.60. Followers pay the 5-point cushion: 0.65.
+        // Alice 1x → 10 shares (cost 6.5). Bob 0.5x → 5 (cost 3.25).
         _firePositionOpened(0, 10 * ONE, 600_000, uint64(block.timestamp + 300) * 1e9);
         assertEq(pool.orderCount(), 2, "two mirrored orders");
 
-        (,,,, uint256 aliceSpent,) = vault.follows(alice);
-        (,,,, uint256 bobSpent,) = vault.follows(bob);
-        assertEq(aliceSpent, 6 * ONE, "alice escrow 6");
-        assertEq(bobSpent, 3 * ONE, "bob escrow 3 (0.5x)");
-        assertEq(usdc.balanceOf(address(pool)), 9 * ONE, "pool pulled 9 total");
+        (,,,, uint256 aliceSpent,,,) = vault.follows(alice);
+        (,,,, uint256 bobSpent,,,) = vault.follows(bob);
+        assertEq(aliceSpent, 65 * ONE / 10, "alice escrow 6.5 (0.60 + 5pt cushion)");
+        assertEq(bobSpent, 325 * ONE / 100, "bob escrow 3.25 (0.5x)");
+        assertEq(usdc.balanceOf(address(pool)), 975 * ONE / 100, "pool pulled 9.75 total");
     }
 
     function test_mirror_down_escrows_one_minus_price() public {
-        // Leader goes DOWN 10 @ YES 0.10 (i.e. NO at 0.90). Alice 1x → cost 9, Bob 0.5x → 4.5.
+        // Leader goes DOWN 10 @ YES 0.10 (NO at 0.90). With the 5-point cushion the
+        // followers pay NO 0.95: alice 1x → 9.5, bob 0.5x → 4.75.
         _firePositionOpened(1, 10 * ONE, 100_000, uint64(block.timestamp + 300) * 1e9);
-        (,,,, uint256 aliceSpent,) = vault.follows(alice);
-        (,,,, uint256 bobSpent,) = vault.follows(bob);
-        assertEq(aliceSpent, 9 * ONE, "DOWN escrow is (1-price)*qty");
-        assertEq(bobSpent, 45 * ONE / 10, "bob half size");
-        assertEq(usdc.balanceOf(address(pool)), 135 * ONE / 10, "pool pulled 13.5 total");
+        (,,,, uint256 aliceSpent,,,) = vault.follows(alice);
+        (,,,, uint256 bobSpent,,,) = vault.follows(bob);
+        assertEq(aliceSpent, 95 * ONE / 10, "DOWN escrow is (1-price)*qty with the cushion");
+        assertEq(bobSpent, 475 * ONE / 100, "bob half size");
+        assertEq(usdc.balanceOf(address(pool)), 1425 * ONE / 100, "pool pulled 14.25 total");
     }
 
     function test_only_precompile_can_trigger() public {
@@ -126,14 +128,16 @@ contract CopyFlowTest is Test {
     }
 
     function test_max_loss_cap_skips_over_budget() public {
-        // Alice cap 30. Repeated 10-share @0.60 buys cost 6 each → 5 fit (30), 6th skipped.
+        // Alice cap 30. Each 10-share @0.60 buy costs 6.5 with the cushion → 4 fit
+        // (26), the 5th would pass 30 and is skipped.
         uint64 exp = uint64(block.timestamp + 300) * 1e9;
         for (uint256 i; i < 6; ++i) {
             _firePositionOpened(0, 10 * ONE, 600_000, exp);
         }
-        (,,,, uint256 aliceSpent, bool active) = _follow(alice);
-        assertEq(aliceSpent, 30 * ONE, "alice capped at max loss 30");
-        // 6 signals x 2 followers, but alice's 6th is skipped → pool orders < 12.
+        (,,,, uint256 aliceSpent, bool active,,) = _follow(alice);
+        assertEq(aliceSpent, 26 * ONE, "alice stopped below her max loss of 30");
+        assertLe(aliceSpent, 30 * ONE, "never past the cap");
+        // 6 signals x 2 followers, but alice's last two are skipped → pool orders < 12.
         assertLt(pool.orderCount(), 12);
         active; // silence
     }
@@ -145,38 +149,40 @@ contract CopyFlowTest is Test {
         assertEq(pool.orderCount(), 1, "one placed, one skipped");
     }
 
-    function test_riskguard_pauses_at_maxloss() public {
-        // Drive alice to her cap, then fire RiskGuard on the fill event.
+    function test_riskguard_pauses_when_the_cap_binds() public {
+        // Drive alice until the cap refuses a mirror, then fire RiskGuard on the
+        // FollowerCapped event the vault emitted.
         uint64 exp = uint64(block.timestamp + 300) * 1e9;
         for (uint256 i; i < 5; ++i) {
             _firePositionOpened(0, 10 * ONE, 600_000, exp);
         }
-        (,,,, uint256 spent,) = _follow(alice);
-        assertEq(spent, 30 * ONE);
+        (,,,, uint256 spent,,,) = _follow(alice);
+        assertEq(spent, 26 * ONE, "four mirrors at 6.5 fit under the 30 cap");
+        assertLt(spent, 30 * ONE, "the cap is never reached exactly; the refusal is the signal");
 
         // RiskGuard receives FollowerFilled for alice at spent==maxLoss → pause.
         bytes32[] memory topics = new bytes32[](4);
-        topics[0] = riskGuard.FOLLOWER_FILLED_TOPIC();
+        topics[0] = riskGuard.FOLLOWER_CAPPED_TOPIC();
         topics[1] = bytes32(uint256(uint160(alice)));
         topics[2] = bytes32(uint256(uint160(leader)));
         topics[3] = marketId;
-        bytes memory data = abi.encode(uint8(0), uint256(10 * ONE), uint256(6 * ONE), uint256(30 * ONE), uint256(30 * ONE));
+        bytes memory data = abi.encode(uint256(65 * ONE / 10), uint256(26 * ONE), uint256(30 * ONE));
         vm.prank(PRECOMPILE);
         riskGuard.onEvent(address(vault), topics, data);
 
-        (,,,,, bool active) = _follow(alice);
+        (,,,,, bool active,,) = _follow(alice);
         assertFalse(active, "alice paused by risk guard");
         assertEq(vault.followerCount(leader), 1, "alice removed from leader list");
     }
 
     function test_withdraw_unspent() public {
         _firePositionOpened(0, 10 * ONE, 600_000, uint64(block.timestamp + 300) * 1e9);
-        // Alice deposited 50, spent 6 → 44 available.
-        assertEq(vault.available(alice), 44 * ONE);
+        // Alice deposited 50, escrowed 6.5 → 43.5 available.
+        assertEq(vault.available(alice), 435 * ONE / 10);
         vm.prank(alice);
-        vault.withdraw(44 * ONE);
-        // minted 100, deposited 50, withdrew 44 → 94 in wallet
-        assertEq(usdc.balanceOf(alice), 94 * ONE);
+        vault.withdraw(435 * ONE / 10);
+        // minted 100, deposited 50, withdrew 43.5 → 93.5 in wallet
+        assertEq(usdc.balanceOf(alice), 935 * ONE / 10);
     }
 
     function test_subscribe_requires_32_stt() public {
@@ -196,7 +202,7 @@ contract CopyFlowTest is Test {
     function _follow(address who)
         internal
         view
-        returns (address l, uint32 r, uint256 ml, uint256 dep, uint256 spent, bool active)
+        returns (address l, uint32 r, uint256 ml, uint256 dep, uint256 spent, bool active, uint32 slip, bool capped)
     {
         return vault.follows(who);
     }
@@ -208,19 +214,19 @@ contract CopyFlowTest is Test {
         _firePositionOpened(0, 10 * ONE, 600_000, uint64(block.timestamp + 300) * 1e9);
         assertEq(vault.shares(alice, marketId, 0), 10 * ONE, "shares recorded");
         assertEq(outcome.balanceOf(address(vault), 1), 15 * ONE, "vault holds alice 10 + bob 5 YES");
-        assertEq(vault.available(alice), 44 * ONE, "50 deposited - 6 escrow");
+        assertEq(vault.available(alice), 435 * ONE / 10, "50 deposited - 6.5 escrow");
 
         module.resolve(marketId, 0);
         uint256 payout = vault.redeem(alice, marketId, 0, 0);
         assertEq(payout, 10 * ONE, "1 tUSDC per winning share");
-        assertEq(vault.available(alice), 54 * ONE, "payout credited to the deposit");
+        assertEq(vault.available(alice), 535 * ONE / 10, "payout credited to the deposit");
         assertEq(vault.shares(alice, marketId, 0), 0, "shares consumed");
         assertEq(outcome.balanceOf(address(vault), 1), 5 * ONE, "bob's shares untouched");
 
         // and it is withdrawable at once
         vm.prank(alice);
-        vault.withdraw(54 * ONE);
-        assertEq(usdc.balanceOf(alice), 104 * ONE, "100 - 50 + 54");
+        vault.withdraw(535 * ONE / 10);
+        assertEq(usdc.balanceOf(alice), 1035 * ONE / 10, "100 - 50 + 53.5");
     }
 
     function test_redeem_many_and_partial() public {
@@ -236,7 +242,7 @@ contract CopyFlowTest is Test {
         ids[0] = marketId;
         idx[0] = 0;
         assertEq(vault.redeemMany(alice, ids, idx), 6 * ONE, "rest via redeemMany");
-        assertEq(vault.available(alice), 54 * ONE);
+        assertEq(vault.available(alice), 535 * ONE / 10);
     }
 
     function test_redeem_losing_side_reverts_and_changes_nothing() public {
@@ -245,12 +251,64 @@ contract CopyFlowTest is Test {
         vm.expectRevert(bytes("losing side"));
         vault.redeem(alice, marketId, 0, 0);
         assertEq(vault.shares(alice, marketId, 0), 10 * ONE, "shares intact");
-        assertEq(vault.available(alice), 44 * ONE);
+        assertEq(vault.available(alice), 435 * ONE / 10);
     }
 
     function test_redeem_requires_shares() public {
         module.resolve(marketId, 0);
         vm.expectRevert(MirrorVault.NoShares.selector);
         vault.redeem(alice, marketId, 0, 0);
+    }
+
+    // ── the slippage cushion ─────────────────────────────────────────────────
+
+    function test_cushion_stops_at_the_ceiling_and_never_undercuts_the_leader() public {
+        // Leader buys DOWN at YES 0.02, i.e. NO at 0.98 — already past the 0.97
+        // ceiling. The ceiling caps the CUSHION, not the leader's own choice, so
+        // the follower mirrors at 0.98 and no cushion is added on top.
+        _firePositionOpened(1, 10 * ONE, 20_000, uint64(block.timestamp + 300) * 1e9);
+        (,,,, uint256 aliceSpent,,,) = _follow(alice);
+        assertEq(aliceSpent, 98 * ONE / 10, "mirrors the leader's price, adds nothing above the ceiling");
+
+        // A cheap leg does get the full relative cushion (15% of 0.30 = 4.5 points,
+        // under the 5-point ceiling), so the follower bids 0.345.
+        (,,,, uint256 bobBefore,,,) = _follow(bob);
+        vm.prank(bob);
+        vault.setFollow(leader, 10_000, 30 * ONE);
+        bytes32 m2 = bytes32(uint256(0x121e9));
+        bytes32[] memory topics = new bytes32[](3);
+        topics[0] = router.POSITION_OPENED_TOPIC();
+        topics[1] = bytes32(uint256(uint160(leader)));
+        topics[2] = m2;
+        vm.prank(PRECOMPILE);
+        copyHandler.onEvent(
+            address(router), topics, abi.encode(address(pool), uint8(0), 10 * ONE, uint256(300_000), uint64(block.timestamp + 300) * 1e9)
+        );
+        (,,,, uint256 bobSpent,,,) = _follow(bob);
+        assertEq(bobSpent - bobBefore, 345 * ONE / 100, "0.30 + 15% = 0.345 a share on 10 shares");
+    }
+
+    function test_cushion_is_configurable_and_bounded() public {
+        vm.prank(alice);
+        vault.setSlippage(0); // back to the default
+        vm.prank(alice);
+        vm.expectRevert(bytes("slippage"));
+        vault.setSlippage(9_999);
+    }
+
+    function test_quantity_is_floored_to_the_lot_grid() public {
+        // 10.0005 shares at 1x → floored to 10.000 (the venue's lot is 1000 raw).
+        _firePositionOpened(0, 10 * ONE + 500, 600_000, uint64(block.timestamp + 300) * 1e9);
+        assertEq(vault.shares(alice, marketId, 0), 10 * ONE, "off-grid size floored, not rejected");
+    }
+
+    function test_mirror_reports_a_reason_when_it_places_nothing() public {
+        vm.prank(bob);
+        vault.clearFollow();
+        vm.prank(address(copyHandler));
+        (uint256 placed, uint8 reason) =
+            vault.mirrorWithReason(bob, marketId, address(pool), 0, 10 * ONE, 600_000, uint64(block.timestamp + 300) * 1e9);
+        assertEq(placed, 0);
+        assertEq(reason, 1, "R_INACTIVE");
     }
 }
