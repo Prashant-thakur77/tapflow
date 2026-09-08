@@ -5,8 +5,11 @@ runs locally today, behind a cloudflared quick tunnel, so if the laptop sleeps t
 leaderboard, proof page and markets fallback go quiet. It is read-only against
 Somnia Shannon — **no private key, no secrets** — so it is safe to host anywhere.
 
-Its SQLite file rebuilds itself from chain on a fresh host (a few minutes), so an
-ephemeral disk is fine and no volume is needed.
+Its SQLite file rebuilds itself from chain on a fresh host in about five minutes,
+so an ephemeral disk is fine and no volume is needed. `BACKFILL` decides how many
+settled windows it pulls before the fill scanners run; it is 250 in the blueprint,
+which covers the whole history of this venue so far. Set it lower only if you want
+a faster, thinner start.
 
 ## Render (free, no card)
 

@@ -19,7 +19,7 @@ services:
       - key: POLL_MS
         value: "15000"
       - key: BACKFILL
-        value: "60"
+        value: "250"
       - key: AGENT_ADDRESS
         value: "0x679812634968c86fb39D943a0a34DA7755b3F228"
       - key: AGENT_LABEL
