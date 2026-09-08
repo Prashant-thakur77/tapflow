@@ -67,7 +67,7 @@ export const ProofView: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Tile label="reactive mirrors" value={proof ? proof.mirrors : "—"} hint={proof ? `${proof.successful} filled · ${proof.mirrors - proof.successful} capped` : undefined} />
+          <Tile label="reactive mirrors" value={proof ? proof.mirrors : "—"} hint={proof ? `${proof.successful} filled · ${proof.mirrors - proof.successful} placed nothing` : undefined} />
           <Tile label="same block" value={pct !== null ? `${pct}%` : "—"} hint={proof ? `${proof.sameBlock} of ${proof.mirrors}` : undefined} />
           <Tile label="leader broadcasts" value={proof ? proof.broadcasts : "—"} />
           <Tile label="handler gas tank" value={handlerBal.data ? `${(Number(handlerBal.data.value) / 1e18).toFixed(1)} STT` : "—"} hint={sub.data !== undefined ? `subscription #${String(sub.data)}` : COPY.subscription ? `subscription #${COPY.subscription}` : undefined} />

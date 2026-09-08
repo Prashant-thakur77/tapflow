@@ -46,7 +46,7 @@ Prediction markets are solo and clunky: connect, approve, read an order book, si
 | **+** | Embeddable tap card | ✅ live | [/embed/BTC/4h](https://tapflow-phi.vercel.app/embed/BTC/4h) — any Somnia dapp drops one live window into an iframe (copy the snippet from any Markets card); same real orders |
 | **+** | `npm run doctor` | ✅ | one read-only screen: wallets, vault, handler gas tank, subscriptions, live books on the venue grid, indexer, site |
 
-Everything above runs against real Shannon transactions from wallet `0x6798…F228` (leader) and `0x1AD9…2015` (follower). Only the RiskGuard subscription is still pending: it needs another 32 STT, which is one more faucet claim away. The indexer has paired **51 of 51** reactive mirrors with their broadcast in the same block across v1, v2 and v3 (25 filled; the rest were skipped by the vault once the follower's 16 tUSDC was fully deployed, until the follower redeemed 7.33 tUSDC of winnings and mirrors resumed).
+Everything above runs against real Shannon transactions from wallet `0x6798…F228` (leader) and `0x1AD9…2015` (follower). Only the RiskGuard subscription is still pending: it needs another 32 STT, which is one more faucet claim away. The indexer has paired **55 of 55** reactive mirrors with their broadcast in the same block across v1 to v4. 28 filled. The 27 that placed nothing are the honest part: most were the bug v4 fixes (the leader's own order had taken the book at that price), and the proof page now shows the contract's own reason code for each one. Since v4 went live every mirror has filled.
 
 ## DreamDEX integration
 
@@ -136,9 +136,7 @@ Served by the indexer (`GET /api/stats`, `/api/leaderboard`, `/api/windows`, `/a
 
 | wallets | taps indexed | volume (tUSDC) | windows | reactive mirrors | same block |
 |---|---|---|---|---|---|
-| 156 | 1,418 | 25,679 | 200 | 51 | 51 of 51 |
-
-25 of those mirrors filled; the other 26 were declined by the vault because the follower's remaining budget or max-loss cap could not cover them — the reactive call still landed in the leader's block. That is the safety rail working, and it is visible on the proof page.
+| 156 | 1,418 | 25,679 | 200 | 55 | 55 of 55 |
 
 ## Architecture
 
