@@ -70,10 +70,16 @@ export async function syncMarketsFromChain(): Promise<number> {
   const deadline = Date.now() + PASS_MS;
   const budget = head - from > 50_000 ? Number.MAX_SAFE_INTEGER : MAX_CHUNKS;
   while (from <= head && chunks < budget && Date.now() < deadline) {
-    const span = Math.min(CHUNK * (head - from > 50_000 ? WIDE : 1), head - from + 1);
-    const to = Math.min(from + span - 1, head);
-    chunks += Math.ceil(span / CHUNK) - 1;
-    const logs = await pc.getLogs({ address: BINARY_MODULE, event: EV_CREATED, fromBlock: BigInt(from), toBlock: BigInt(to) });
+    // 1000 blocks is the RPC's hard limit per call: go wide with more calls.
+    const lanes = head - from > 50_000 ? WIDE : 1;
+    const spans: { from: number; to: number }[] = [];
+    for (let i = 0; i < lanes && from + i * CHUNK <= head; i++) {
+      const f = from + i * CHUNK;
+      spans.push({ from: f, to: Math.min(f + CHUNK - 1, head) });
+    }
+    const to = spans[spans.length - 1].to;
+    chunks += spans.length - 1;
+    const logs = (await Promise.all(spans.map((sp) => pc.getLogs({ address: BINARY_MODULE, event: EV_CREATED, fromBlock: BigInt(sp.from), toBlock: BigInt(sp.to) })))).flat();
     for (const l of logs) {
       const a = l.args as { marketId: Hex; pool: Hex; venueId: Hex };
       if (a.venueId.toLowerCase() !== VENUE_ID.toLowerCase()) continue;

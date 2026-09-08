@@ -96,18 +96,30 @@ export async function syncMirrors(): Promise<void> {
   const deadline = Date.now() + PASS_MS;
   const budget = head - from > 50_000 ? Number.MAX_SAFE_INTEGER : MAX_CHUNKS_PER_SYNC;
   while (from <= head && chunks < budget && Date.now() < deadline) {
-    // Widen the window when far behind so a fresh host backfills in minutes.
-    const span = Math.min(Number(CHUNK) * (head - from > 50_000 ? CONCURRENCY : 1), head - from + 1);
-    const to = Math.min(from + span - 1, head);
-    chunks += Math.ceil(span / Number(CHUNK)) - 1;
-    const [opened, mirrored, filled] = await Promise.all([
-      pc.getLogs({ address: deployments.router, event: OPENED, fromBlock: BigInt(from), toBlock: BigInt(to) }),
-      pc.getLogs({ address: HANDLERS, event: MIRRORED, fromBlock: BigInt(from), toBlock: BigInt(to) }).then(async (v1) => {
-        const v4 = await pc.getLogs({ address: HANDLERS, event: MIRRORED_V4, fromBlock: BigInt(from), toBlock: BigInt(to) });
-        return [...v1, ...v4] as (typeof v1[number] & { args: { reason?: number } })[];
+    // The RPC refuses a range wider than 1000 blocks, so go wide by running
+    // several 1000-block windows at once, never by asking for a bigger one.
+    const lanes = head - from > 50_000 ? CONCURRENCY : 1;
+    const spans: { from: number; to: number }[] = [];
+    for (let i = 0; i < lanes && from + i * Number(CHUNK) <= head; i++) {
+      const f = from + i * Number(CHUNK);
+      spans.push({ from: f, to: Math.min(f + Number(CHUNK) - 1, head) });
+    }
+    const to = spans[spans.length - 1].to;
+    chunks += spans.length - 1;
+    const per = await Promise.all(
+      spans.map(async (sp) => {
+        const [o, m1, m4, f] = await Promise.all([
+          pc.getLogs({ address: deployments.router, event: OPENED, fromBlock: BigInt(sp.from), toBlock: BigInt(sp.to) }),
+          pc.getLogs({ address: HANDLERS, event: MIRRORED, fromBlock: BigInt(sp.from), toBlock: BigInt(sp.to) }),
+          pc.getLogs({ address: HANDLERS, event: MIRRORED_V4, fromBlock: BigInt(sp.from), toBlock: BigInt(sp.to) }),
+          pc.getLogs({ address: VAULTS, event: FILLED, fromBlock: BigInt(sp.from), toBlock: BigInt(sp.to) }),
+        ]);
+        return { o, m: [...m1, ...m4] as (typeof m1[number] & { args: { reason?: number } })[], f };
       }),
-      pc.getLogs({ address: VAULTS, event: FILLED, fromBlock: BigInt(from), toBlock: BigInt(to) }),
-    ]);
+    );
+    const opened = per.flatMap((x) => x.o);
+    const mirrored = per.flatMap((x) => x.m);
+    const filled = per.flatMap((x) => x.f);
     const tx = db.transaction(() => {
       for (const l of opened) {
         added += st.insB.run({
