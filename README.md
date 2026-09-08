@@ -189,6 +189,8 @@ npm run doctor
 nohup scripts/tunnel.sh > tunnel.log 2>&1 &
 ```
 
+To host the indexer instead of tunnelling it, see [`docs/HOSTING.md`](docs/HOSTING.md) — one-click blueprints for Render (`render.yaml`) and Railway (`railway.json`), no secrets needed.
+
 ## Status: honest scope
 
 - **Done & live on Shannon:** tap → real IOC order, session keys, faucet, claim-all, on-chain history, chain-indexed fills + windows + results (upstream-independent), leaderboard + stats + OG cards + proof page, the four copy-trading contracts (v3: followers redeem their mirrored winnings), the CopyHandler reactivity subscription, ten verified same-block mirrors, TapBot live with a risk gate, auto-claim and a settled record, embed cards, CI. Telegram bot built.
