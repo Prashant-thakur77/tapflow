@@ -190,6 +190,19 @@ export async function listLiveWindows(
       lastPrice: r.lastPrice ? Number(r.lastPrice) / 10 ** (r.quoteDecimals ?? 6) : null,
     });
   });
+  // The upstream list is often STALE rather than down: after a 5-minute window
+  // expires, its successor can take a minute or more to be listed, and the tap
+  // screen would sit on "loading". Our indexer sees MarketCreated within seconds,
+  // so merge in any window it knows that upstream has not listed yet.
+  try {
+    const extra = (await withTimeout(listLiveWindowsFallback(opts), 4_000)).filter((w) => !out.some((o) => o.marketId.toLowerCase() === w.marketId.toLowerCase()));
+    if (extra.length) {
+      console.debug(`[tapflow] +${extra.length} window(s) from chain discovery that upstream has not listed yet`);
+      out.push(...extra);
+    }
+  } catch {
+    /* best-effort */
+  }
   return out.sort((a, b) => a.expiry - b.expiry);
 }
 

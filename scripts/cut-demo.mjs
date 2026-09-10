@@ -61,7 +61,10 @@ const firstSeen = (name) => clean.find((r) => r.idx >= 0 && nameOf(r.idx) === na
 // ── what to drop ──────────────────────────────────────────────────────────
 const drops = [];
 // blank/loading stretches: no marker for more than 3 s (keep the last second so the cut lands on a painted page)
-for (const r of clean) if (r.idx < 0 && r.end - r.start > 3 && r.start > 0.5) drops.push([r.start, r.end - 1]);
+for (const r of clean) if (r.idx < 0 && r.end - r.start > 3) drops.push([r.start, r.end - 0.4]);
+// tick markers (14/15) inside the live scene: keep 4.5 s after each new line, drop the waiting
+const TICKS = new Set([14, 15]);
+for (const r of clean) if (TICKS.has(r.idx) && r.end - r.start > 5.5) drops.push([r.start + 4.5, r.end - 1]);
 // the indexer wait: keep 5 s of it and the second before the row lands
 const rowA = firstSeen("mirror-row"), rowB = firstSeen("mirror-row-ready") ?? firstSeen("mirror-row-missing");
 if (rowA !== undefined && rowB !== undefined && rowB - rowA > 7) drops.push([rowA + 5, rowB - 1]);
@@ -108,8 +111,7 @@ const LINES = {
   "mirror-row": ["The indexer picks it up from chain: the new row lands at the top with both transactions and the block number."],
   "mirror-row-ready": [`Block ${proof.block ?? "…"}: leader broadcast and follower mirror, one block. A row that placed nothing is the safety rail — the vault declined on the follower's own max-loss cap.`],
   "mirror-row-missing": ["The indexer will pair this mirror with its broadcast on its next pass, as it has for every one before it."],
-  "explorer-block": ["That block on the Shannon explorer."],
-  "explorer-tx": ["The mirror itself: status Success, method onEvent, sent FROM the CopyHandler contract. No externally owned account signed this."],
+  "explorer-tx": [`On the Shannon explorer: block ${proof.block ?? "…"}, status Success, method onEvent, sent FROM the CopyHandler contract.`, "No externally owned account signed this. That is Somnia reactivity placing a follower's trade in the leader's block."],
   close: [
     "Followers redeem mirrored winnings through the vault. A Telegram bot exposes the same flow.",
     "Everything you saw is a real transaction on Shannon. Code, contracts and a 20-item SDK feedback report are in the repo. TapFlow.",

@@ -1,13 +1,15 @@
 # Demo script
 
-Target length: about 2 minutes 15 seconds, 1280×800. The recording is driven by
+Final cut: 2 min 06 s, 1280×800, [`docs/media/tapflow-demo.mp4`](media/tapflow-demo.mp4). The mirror placed on camera is block 484945348. The recording is driven by
 Playwright against the **live** site and the **live** chain: every number on
 screen is real, and scene 5 places a real leader tap, broadcasts it, and shows
 the follower's mirror landing in the same block while the camera rolls.
 
-The silent cut has these lines burned in as captions, so it stands on its own.
-To narrate, play the mp4 full screen and read the lines over it; the caption
-timings are the cue.
+The captioned cut has these lines burned in, so it stands on its own. To narrate,
+play `tapflow-demo-silent.mp4` full screen and read the lines over it.
+
+Re-record any time: `node scripts/record-demo.mjs ./video && node scripts/cut-demo.mjs ./video`
+(needs the leader key in `.env`; run TapBot paused so the two never race on a nonce).
 
 ---
 

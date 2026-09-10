@@ -16,7 +16,9 @@ export const config = {
   label: env("AGENT_LABEL", "TapBot"),
 
   // Where to publish the rationale feed (the F4 indexer).
-  tapflowApi: env("TAPFLOW_API", "http://localhost:8787"),
+  /** First entry is read from; every entry receives feed posts. */
+  tapflowApi: env("TAPFLOW_API", "http://localhost:8787").split(",")[0].trim().replace(/\/$/, ""),
+  tapflowApis: env("TAPFLOW_API", "http://localhost:8787").split(",").map((s) => s.trim().replace(/\/$/, "")).filter(Boolean),
   feedSecret: env("FEED_SECRET", ""),
 
   // Optional: broadcast through the Router so followers mirror in-block.

@@ -19,16 +19,22 @@ export interface FeedItem {
 
 /** Publish a rationale to the TapFlow indexer feed (best-effort). */
 export async function postFeed(item: FeedItem): Promise<void> {
-  try {
-    const res = await fetch(`${config.tapflowApi}/api/feed`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ secret: config.feedSecret, item }),
-    });
-    if (!res.ok) console.warn(`feed POST ${res.status}`);
-  } catch (e) {
-    console.warn("feed POST failed:", (e as Error).message);
-  }
+  // TAPFLOW_API may list several indexers (hosted + local); every one gets the post.
+  await Promise.all(
+    config.tapflowApis.map(async (api) => {
+      try {
+        const res = await fetch(`${api}/api/feed`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ secret: config.feedSecret, item }),
+          signal: AbortSignal.timeout(15_000),
+        });
+        if (!res.ok) console.warn(`feed POST ${api} → ${res.status}`);
+      } catch (e) {
+        console.warn(`feed POST ${api} failed:`, (e as Error).message.slice(0, 80));
+      }
+    }),
+  );
 }
 
 const ROUTER_ABI = [

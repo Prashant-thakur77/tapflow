@@ -30,13 +30,15 @@ async function headBlock() {
   const r = await fetch(RPC, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_blockNumber", params: [] }) });
   return Number((await r.json()).result);
 }
+// The mirror scanner is the one the live scene depends on; the fill scanner
+// can lag on a slow host without affecting it.
 for (let i = 0; i < 40; i++) {
   try {
-    const h = await (await fetch(`${API}/api/health`, { signal: AbortSignal.timeout(40000) })).json();
+    const [newest] = await (await fetch(`${API}/api/mirrors?limit=1`, { signal: AbortSignal.timeout(40000) })).json();
     const head = await headBlock();
-    const behind = head - Number(h.lastBlock ?? 0);
-    console.log(`preflight: indexer ${behind} blocks behind head`);
-    if (behind < 4000) break;
+    const behind = head - Number(newest?.block ?? 0);
+    console.log(`preflight: newest indexed mirror is ${behind} blocks behind head`);
+    if (behind < 60_000) break;
   } catch (e) {
     console.log(`preflight: indexer not answering yet (${String(e).slice(0, 60)})`);
   }
@@ -122,6 +124,7 @@ const overlayOff = () => page.evaluate(() => document.getElementById("tf-demo-ov
 // ── 1 · landing ──────────────────────────────────────────────────────────
 await page.goto(APP, { waitUntil: "domcontentloaded" });
 await waitText("live windows", 30000);
+await waitText("closes", 30000); // the hero ring has a real window
 await scene("landing");
 await hold(4500);
 await scroll(620);
@@ -149,6 +152,9 @@ await hold(4500);
 await page.goto(`${APP}/markets`, { waitUntil: "domcontentloaded" });
 await waitText("LIVE", 60000);
 await waitText("→", 60000);
+// every card polls its own book on-chain; give most of them time to fill in
+await page.locator("text=→").nth(5).waitFor({ timeout: 40000 }).catch(() => {});
+await hold(1500);
 await scene("markets");
 await hold(4000);
 await page.getByText("embed", { exact: false }).first().hover().catch(() => {});
@@ -173,6 +179,7 @@ await scene("mirror-live");
 const lines = ["$ npx tsx scripts/mirror-demo.ts", ""];
 await overlay(lines);
 const proof = { block: null, broadcastTx: null, reactiveTx: null, tapTx: null };
+let tick = 15;
 await new Promise((resolve) => {
   const child = spawn("npx", ["tsx", "scripts/mirror-demo.ts"], { cwd: path.resolve(new URL(".", import.meta.url).pathname, ".."), env: { ...process.env, TAPFLOW_API: process.env.TAPFLOW_API ?? "http://localhost:8787" } });
   const onLine = async (raw) => {
@@ -187,6 +194,10 @@ await new Promise((resolve) => {
     lines.push(l.replace(/https:\/\/shannon-explorer\.somnia\.network\/tx\//g, "tx ").slice(0, 110));
     while (lines.length > 14) lines.splice(2, 1);
     await overlay(lines).catch(() => {});
+    // A tick marker (two alternating colours) each time a line lands, so the
+    // cut can keep the moments something happens and drop the waiting.
+    tick = tick === 14 ? 15 : 14;
+    await stamp(tick);
   };
   let buf = "";
   child.stdout.on("data", (d) => {
@@ -235,22 +246,13 @@ await hold(1000);
 // ── 6 · explorer ─────────────────────────────────────────────────────────
 // Blockscout takes 15-40 s to paint; the recorder marks when content is on
 // screen and the cut drops the blank stretch before it.
-if (proof.block) {
-  await page.goto(`${EXPLORER}/block/${proof.block}`, { waitUntil: "domcontentloaded", timeout: 90000 }).catch(() => {});
-  await page.getByText(String(proof.block), { exact: false }).first().waitFor({ timeout: 60000 }).catch(() => {});
-  await page.getByText("Transactions", { exact: false }).first().waitFor({ timeout: 30000 }).catch(() => {});
-  await hold(1500);
-  await scene("explorer-block");
-  await hold(6000);
-  await scroll(500);
-  await hold(3500);
-}
 if (proof.reactiveTx) {
   await page.goto(`${EXPLORER}/tx/${proof.reactiveTx}`, { waitUntil: "domcontentloaded", timeout: 90000 }).catch(() => {});
   await page.getByText("Success", { exact: false }).first().waitFor({ timeout: 60000 }).catch(() => {});
+  await page.getByText("onEvent", { exact: false }).first().waitFor({ timeout: 30000 }).catch(() => {});
   await hold(1500);
   await scene("explorer-tx");
-  await hold(9000);
+  await hold(11000);
 }
 
 // ── 7 · close ────────────────────────────────────────────────────────────
