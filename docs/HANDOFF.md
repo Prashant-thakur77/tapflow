@@ -32,17 +32,45 @@ Chain: Somnia Shannon 50312, RPC https://dream-rpc.somnia.network, explorer http
 - Extras: markets grid, embed route, proof page, leader pages, copy-vault card, mirror alerts, keyboard taps, `npm run doctor`, one-click Render/Railway blueprints.
 - Demo video **done and committed**: `docs/media/tapflow-demo.mp4` (2:04, captioned, silent) and `tapflow-demo-silent.mp4`. A real leader tap → broadcast → same-block follower mirror is placed on camera at block 484945348. Pipeline: `scripts/record-demo.mjs` (Playwright; stamps a 12px colour marker per scene into the picture because the screencast clock drifts) → `scripts/cut-demo.mjs` (reads markers back, drops loading gaps, burns captions). Record against `DEMO_APP=http://localhost:5174 DEMO_API=http://localhost:8787` (local stack; Render is too slow to surface the row in time). Pause TapBot during a take (same key → nonce race), resume after.
 
-## In progress when this handoff was written (voice + restructure)
+## The video (done)
 
-User asked for: (1) an AI voice with **Chatterbox TTS** so the video is not silent, (2) the script restructured as **problem → how we solve it → why this stack (DreamDEX Event Contracts, markets SDK, Somnia Reactivity)** → proof, (3) the user's **Telegram phone clip** spliced in (expected at `docs/media/telegram.mp4`; not delivered yet), reference style: https://www.youtube.com/watch?v=ubnzboSC8NM (a hackathon demo submission).
+`docs/media/tapflow-demo.mp4` — **3 min 31 s, narrated and captioned**, and
+`tapflow-demo-silent.mp4` (picture only). A real leader tap, its broadcast, and
+the follower's same-block mirror are placed **and indexed** on camera at
+[block 484969998](https://shannon-explorer.somnia.network/block/484969998).
 
-Done so far:
-- `scripts/demo-lines.mjs` — the new narration, one array per scene (problem-first), plus a `telegram` scene.
-- `scripts/tts.py` — Chatterbox generator: one wav per line into `video/tts/`, plus `durations.json`. Voice: Chatterbox built-in, exaggeration 0.35, cfg 0.55. Run with `~/tts/.venv/bin/python scripts/tts.py` from the repo root.
-- Chatterbox install: `uv venv --python 3.11 ~/tts/.venv && uv pip install chatterbox-tts` was running in the background (`~/tts/install.log`, ends with `exit 0` when done). GPU: RTX 3050 6GB. First run downloads the model from Hugging Face.
-- `scripts/record-demo.mjs` — scene holds now follow `video/tts/durations.json` when it exists (`need()` / `holdFor()`), so a voiced take never needs freeze frames.
+The narration is written, not read aloud by a person:
 
-NOT done (the file write failed, redo it): `scripts/cut-demo.mjs` must (a) import `LINES` from `./demo-lines.mjs`, (b) when `video/tts/durations.json` exists build one segment per line from the silent cut with the wav under it (`tpad=stop_mode=clone` if the line outruns the picture, `apad` otherwise, `aresample=48000` + mono, concat v+a, `loudnorm`), (c) splice `docs/media/telegram.mp4` (scaled/padded to 1280×800) before the `close` scene with the `telegram` line, (d) burn captions with the new times. Then: run `tts.py` → re-record (`DEMO_APP`/`DEMO_API` local, agent paused) → `cut-demo.mjs` → review frames → commit/push → send the mp4 to the user.
+| Step | Command |
+|---|---|
+| The script | `scripts/demo-lines.mjs` — one array per scene, ordered problem → how we solve it → why this stack → proof |
+| The voice | `~/chatterbox-env/bin/python scripts/tts.py video/tts` — Chatterbox, one wav per line, plus `durations.json` |
+| A take | `DEMO_APP=http://localhost:5174 DEMO_API=http://localhost:8787 node scripts/record-demo.mjs ./video` |
+| The cut | `node scripts/cut-demo.mjs ./video` |
+
+Chatterbox lives at **`~/chatterbox-env`** (a `~/tts/.venv` install was started and
+abandoned; the model is cached under `~/.cache/huggingface`). After generating,
+the wavs are trimmed and slowed to about 196 words per minute; the untouched
+originals stay in `video/tts/raw/`.
+
+The recorder holds each scene at least as long as its lines take to say, so the
+picture tracks the voice. The cut lays one segment per spoken line, freezes the
+last frame when a line outruns its shot, trims a shot that sits more than 2.5 s
+past its line, and burns the captions on the new timing.
+
+**Still open:** the user's Telegram phone clip. Drop it at
+`docs/media/telegram.mp4` and re-run the cut — it is scaled onto the video's own
+background, played up to 1.8x so it fits its line, and spliced in before the
+closing scene. The shot list is `docs/TELEGRAM-CLIP.md`.
+
+Two things that cost a take:
+
+- **Never run two cuts on the same take directory at once.** They share
+  `video*/seg` and `voiced.mp4`, and the result is a corrupt mp4 (`moov atom not
+  found`, `Invalid NAL unit size`).
+- A Playwright `.hover()` that misses **waits its full 30 s timeout inside the
+  scene**. That is why one markets shot ran 52 s; the cut's silence cap now
+  trims it, but the take is still slow.
 
 ## Laptop services (restart after any reboot)
 
@@ -70,5 +98,6 @@ Kill a service by cwd, never with `pgrep -f` (it matches the shell and exits 144
 ## What the user still has to do
 
 1. Submit on DoraHacks before 23:30 IST today: repo link + video link (upload `docs/media/tapflow-demo.mp4` to YouTube unlisted). Text in `docs/SUBMISSION.md`.
-2. Drop the Telegram phone clip at `docs/media/telegram.mp4` if it should be in the video.
+2. Record the Telegram phone clip (`docs/TELEGRAM-CLIP.md` is the shot list), save it at
+   `docs/media/telegram.mp4`, and re-run `node scripts/cut-demo.mjs ./video3`.
 3. Optional: a free UptimeRobot monitor on `https://tapflow-indexer.onrender.com/api/health`.
