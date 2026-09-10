@@ -7,7 +7,7 @@
   "collateral": "0x70a86D8842FB63C4Ad2b7cdddF530eBf1BB25d8E",
   "subscriptions": {
     "copyHandler": "16910004",
-    "riskGuard": "0"
+    "riskGuard": "17880662"
   },
   "deployedAt": "2026-09-08T08:05:00Z",
   "note": "v4: mirrors pay a bounded cushion over the leader's limit (15% of the leg, max 5 points, never above 0.97) because the leader's own IOC consumes the book at their price; quantities are floored to the venue lot; every skipped mirror carries an on-chain reason code; RiskGuard now fires on FollowerCapped (the cap refuses before `spent` can reach `maxLoss`). v3 kept per-follower shares + module redeem. All earlier versions readable on the explorer.",

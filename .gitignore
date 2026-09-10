@@ -55,3 +55,4 @@ agent/node_modules/
 tg-bot/node_modules/
 subscriptions.json
 .vercel
+video/
