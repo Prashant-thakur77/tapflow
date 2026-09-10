@@ -61,7 +61,7 @@ const firstSeen = (name) => clean.find((r) => r.idx >= 0 && nameOf(r.idx) === na
 // ── what to drop ──────────────────────────────────────────────────────────
 const drops = [];
 // blank/loading stretches: no marker for more than 3 s (keep the last second so the cut lands on a painted page)
-for (const r of clean) if (r.idx < 0 && r.end - r.start > 3) drops.push([r.start, r.end - 0.4]);
+for (const r of clean) if (r.idx < 0 && r.end - r.start > 3) drops.push([r.start, r.end]); // the next marker is only stamped once the page is painted
 // tick markers (14/15) inside the live scene: keep 4.5 s after each new line, drop the waiting
 const TICKS = new Set([14, 15]);
 for (const r of clean) if (TICKS.has(r.idx) && r.end - r.start > 5.5) drops.push([r.start + 4.5, r.end - 1]);

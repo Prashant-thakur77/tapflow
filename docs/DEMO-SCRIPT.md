@@ -1,6 +1,6 @@
 # Demo script
 
-Final cut: 2 min 06 s, 1280×800, [`docs/media/tapflow-demo.mp4`](media/tapflow-demo.mp4). The mirror placed on camera is block 484945348. The recording is driven by
+Final cut: 2 min 05 s, 1280×800, [`docs/media/tapflow-demo.mp4`](media/tapflow-demo.mp4). The mirror placed on camera is block 484945348. The recording is driven by
 Playwright against the **live** site and the **live** chain: every number on
 screen is real, and scene 5 places a real leader tap, broadcasts it, and shows
 the follower's mirror landing in the same block while the camera rolls.
@@ -81,15 +81,12 @@ Re-record any time: `node scripts/record-demo.mjs ./video && node scripts/cut-de
 
 ## 6 · The explorer (1:38)
 
-*(the block)*
+*(the reactive transaction on the Shannon explorer)*
 
-> Here is that block on the Shannon explorer.
-
-*(the reactive transaction)*
-
-> And the mirror itself. Status success, method `onEvent`, sent **from the
-> CopyHandler contract**. No externally owned account signed this. That is
-> Somnia reactivity placing a follower's trade in the leader's block.
+> The mirror itself, on the explorer. The block number, status success, method
+> `onEvent`, sent **from the CopyHandler contract**. No externally owned account
+> signed this. That is Somnia reactivity placing a follower's trade in the
+> leader's block.
 
 ## 7 · Close (2:00)
 
