@@ -16,7 +16,7 @@ TapFlow turns every live DreamDEX Event Contract into a one-tap UP/DOWN game, le
 
 - **Live app:** https://tapflow-phi.vercel.app · **Indexer API:** https://tapflow-indexer.onrender.com (hosted, read-only) · **Proof page (live, from chain):** https://tapflow-phi.vercel.app/proof · **Markets grid:** https://tapflow-phi.vercel.app/markets
 - **Same-block mirror, on the explorer:** [block 482312219](https://shannon-explorer.somnia.network/block/482312219) (UP) and [block 482322170](https://shannon-explorer.somnia.network/block/482322170) (DOWN) — leader broadcast and follower's reactive order, one block. The indexer has paired **8 of 8** mirrors with their broadcast in the same block, including five placed autonomously by TapBot.
-- **Code:** https://github.com/Prashant-thakur77/tapflow · **Narration script:** [`docs/DEMO-SCRIPT.md`](docs/DEMO-SCRIPT.md) · **Demo video:** [`docs/media/tapflow-demo.mp4`](docs/media/tapflow-demo.mp4) (2 min, captioned; a real same-block mirror is placed on camera at block 484945348) · silent cut for narration: [`tapflow-demo-silent.mp4`](docs/media/tapflow-demo-silent.mp4) · **Telegram bot:** [@TapFlowSomniaBot](https://t.me/TapFlowSomniaBot) — live
+- **Code:** https://github.com/Prashant-thakur77/tapflow · **Narration script:** [`docs/DEMO-SCRIPT.md`](docs/DEMO-SCRIPT.md) · **Demo video:** [`docs/media/tapflow-demo.mp4`](docs/media/tapflow-demo.mp4) (3 min 31 s, narrated and captioned; a real same-block mirror is placed on camera at block 484969998) · picture-only cut: [`tapflow-demo-silent.mp4`](docs/media/tapflow-demo-silent.mp4) · **Telegram bot:** [@TapFlowSomniaBot](https://t.me/TapFlowSomniaBot) — live
 - Every number in the app is read live from Somnia Shannon. Nothing in the demo path is mocked.
 
 **Judges, the two-minute path:** open the [app](https://tapflow-phi.vercel.app/tap) → Connect (MetaMask, Somnia Shannon 50312, STT from the [faucet](https://testnet.somnia.network/)) → "Get tUSDC" in the header (on-chain faucet mint) → **Start one-tap session** (two signatures, then none) → press **↑** or **↓** → watch the fill on the explorer. Then open [Leaders](https://tapflow-phi.vercel.app/leaders), follow **TapBot** with 5 tUSDC, and the [Proof](https://tapflow-phi.vercel.app/proof) page shows your mirror in TapBot's block when it next taps.
@@ -195,7 +195,7 @@ To host the indexer instead of tunnelling it, see [`docs/HOSTING.md`](docs/HOSTI
 ## Status: honest scope
 
 - **Done & live on Shannon:** tap → real IOC order, session keys, faucet, claim-all, on-chain history, chain-indexed fills + windows + results (upstream-independent), leaderboard + stats + OG cards + proof page, the four copy-trading contracts (v3: followers redeem their mirrored winnings), the CopyHandler reactivity subscription, ten verified same-block mirrors, TapBot live with a risk gate, auto-claim and a settled record, embed cards, CI. Telegram bot built.
-- **Pending:** nothing on the build side; a narrated cut is optional (the captioned video stands alone). The follower's 1.30 winning shares from before the v3 upgrade are stranded in the v2 vault (no redeem there).
+- **Pending:** nothing on the build side. The follower's 1.30 winning shares from before the v3 upgrade are stranded in the v2 vault (no redeem there).
 - **Researched, not shipped:** non-custodial operator session keys (`src/lib/ec/operator.ts`).
 - **Not in scope:** mainnet, cross-chain, a hosted multi-tenant relayer.
 

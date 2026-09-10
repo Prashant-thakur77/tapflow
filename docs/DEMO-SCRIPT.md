@@ -1,101 +1,114 @@
 # Demo script
 
-Final cut: 2 min 05 s, 1280×800, [`docs/media/tapflow-demo.mp4`](media/tapflow-demo.mp4). The mirror placed on camera is block 484945348. The recording is driven by
-Playwright against the **live** site and the **live** chain: every number on
-screen is real, and scene 5 places a real leader tap, broadcasts it, and shows
-the follower's mirror landing in the same block while the camera rolls.
+Final cut: **3:31**, 1280×800, narrated, [`docs/media/tapflow-demo.mp4`](media/tapflow-demo.mp4).
+The mirror placed on camera is [block 484969998](https://shannon-explorer.somnia.network/block/484969998).
+A picture-only cut is at [`tapflow-demo-silent.mp4`](media/tapflow-demo-silent.mp4) if you would rather read the lines yourself.
 
-The captioned cut has these lines burned in, so it stands on its own. To narrate,
-play `tapflow-demo-silent.mp4` full screen and read the lines over it.
+Everything is recorded by Playwright against the running app and the **live**
+chain: every number on screen is real, and the proof scene places a real leader
+tap, broadcasts it, and shows the follower's mirror landing in the same block
+while the camera rolls.
 
-Re-record any time: `node scripts/record-demo.mjs ./video && node scripts/cut-demo.mjs ./video`
-(needs the leader key in `.env`; run TapBot paused so the two never race on a nonce).
+The narration below is the source of truth: [`scripts/demo-lines.mjs`](../scripts/demo-lines.mjs)
+feeds the voice ([`scripts/tts.py`](../scripts/tts.py), Chatterbox), the scene
+holds in the recorder, and the burned-in captions.
+
+Rebuild it:
+
+```bash
+~/chatterbox-env/bin/python scripts/tts.py video/tts   # the voice, one clip per line
+node scripts/record-demo.mjs ./video                   # a take (scenes hold for their lines)
+node scripts/cut-demo.mjs ./video                      # cut, voice, captions
+```
+
+Needs the leader key in `.env`, and TapBot paused so the two never race on a nonce.
 
 ---
 
-## 1 · Landing (0:00)
+## The problem, and the one-line answer — 0:00
 
-> This is TapFlow. Every live DreamDEX Event Contract becomes a one-tap Up or
-> Down call on Somnia Shannon. Real orders on a real on-chain book. Nothing
-> simulated.
+> Prediction markets have a problem. Every trade is solo: connect a wallet, approve a token, read an order book, sign, wait. And if you want to copy someone who is good, you can't — not on-chain, not in time.
+>
+> Copy trading everywhere else runs on bots and relayers. By the time your copy lands, the price has moved. On five-minute markets, a block late is too late.
+>
+> TapFlow fixes both. Every live DreamDEX Event Contract becomes a one-tap UP or DOWN call, and following a leader means your order is placed in the SAME BLOCK as theirs, by the chain itself.
 
-*(scroll: the proof strip and the flow diagram)*
+*(landing, 29 s)*
 
-> And this is the part nobody else has: when a leader taps, followers are
-> filled in the **same block**, by Somnia's reactivity precompile calling our
-> contract. No keeper. No relayer. No next-block lag.
+## The tap screen — 0:33
 
-## 2 · The tap screen (0:12)
+> This is the tap screen. One window: the countdown, the price against where it opened, and the crowd's odds. Tap UP or DOWN and your stake becomes a real immediate-or-cancel order on the live on-chain book.
+>
+> Below, the crowd-odds line from one-minute candles, and who holds what on this window, read straight from the pool's own logs.
+>
+> Fund a capped session wallet once, and every tap and every claim signs itself. No wallet popups. On desktop, the arrow keys tap.
 
-> One window. The countdown, the price against where the window opened, and the
-> crowd's odds. Tap Up or Down and your stake becomes an immediate-or-cancel
-> order on the live book, sized on the venue's own tick and lot grid.
+*(tap, 25 s)*
 
-*(scroll: crowd-odds line, top positions)*
+## Every window, and why Event Contracts — 1:05
 
-> This line is what the crowd paid for Up through the window, from one-minute
-> candles. Below it, who holds what — read from the pool's own logs, because the
-> upstream indexer lags by up to a hundred minutes and drops wallets.
+> Every live window on the venue as a card, with quick taps. Any Somnia app can embed one of these cards in an iframe.
+>
+> Why DreamDEX Event Contracts? They are real binary markets with a real on-chain order book, rolled every few minutes, with oracle settlement. That is exactly what one-tap trading needs, and the Somnia markets SDK gives us the book, the quotes and the orders without a backend of our own.
 
-*(hover Up, hover Down, switch to ETH)*
+*(markets, 21 s)*
 
-> The chips show your payout, not just the odds. Fund a capped session wallet
-> once and every tap and every claim signs itself. No popups. On desktop the
-> arrow keys tap.
+## Leaders, and an agent you can follow — 1:31
 
-## 3 · Markets (0:34)
+> The leaderboard is built from chain, ranked by realized profit on settled windows. TapBot is our agent: a momentum strategy that taps as a public leader you can follow like any human. Dozens of real taps, a settled record, and every copy it triggered is on-chain.
+>
+> When it does not trade, it says why. Price too high, spread wider than the edge, cooling down. Every hold is published with its reason code, so a follower knows what they are following.
 
-> Every live window on the venue as a card, with quick taps. Any Somnia app can
-> embed one of these cards in an iframe — the embed button copies the snippet.
+*(leaders, 24 s)*
 
-## 4 · Leaders (0:42)
+## Somnia Reactivity — 1:59
 
-> The leaderboard is built from chain and ranked by realized profit on settled
-> windows. TapBot is our agent: a momentum strategy that taps as a public leader
-> you can follow like any human. Over fifty real taps, a settled win-loss
-> record, and every copy it triggered is on-chain.
+> Now the part only Somnia makes possible. Somnia's reactivity precompile lets a contract subscribe to an event and be invoked inside the very block that emits it. No keeper, no relayer, no bot. We built our copy engine on that.
+>
+> This page pairs every reactive mirror with the broadcast that triggered it. Let's add one now, live.
 
-*(scroll: the feed with "holding" rows)*
+*(proof, 18 s)*
 
-> And when it does *not* trade, it says why. Price above ninety cents, spread
-> wider than the edge, already in this window, cooling down. Every hold is
-> published with its reason code, so a follower knows what they are following.
+## A real mirror, on camera — 2:19
 
-## 5 · Live proof (0:58)
+> A real leader tap goes in. It fills. It is broadcast through the Router contract.
+>
+> And there is the follower's order: placed by the CopyHandler contract, from the follower's vault, in the same block.
 
-*(the proof page: tiles, the mirrors table)*
+*(mirror-live, 11 s)*
 
-> This page pairs every reactive mirror with the broadcast that triggered it.
-> Let's add one now, live.
+## The indexer picks it up — 2:34
 
-*(overlay appears; the demo script runs: leader tap → broadcast → mirror)*
+> Our indexer reads it from chain and the new row lands at the top of the table, with both transactions and the block number.
 
-> A leader tap goes in. It fills. The tap is broadcast through the Router …
-> and there is the follower's order — placed by the CopyHandler contract, from
-> the follower's vault, in the **same block**. The row lands at the top of the
-> table with both transactions and the block number.
+*(mirror-row, 7 s)*
 
-> A row that placed nothing is the safety rail working: the vault checked the
-> follower's own max-loss cap and declined, and RiskGuard — a second reactive
-> subscription — pauses a follower who hits their cap.
+## Same block, and the safety rail
 
-## 6 · The explorer (1:38)
+> Same block, every time. A row that placed nothing is the safety rail: the vault checked the follower's own max-loss cap and declined, and a second reactive contract, RiskGuard, pauses a follower who hits their cap.
 
-*(the reactive transaction on the Shannon explorer)*
+*(mirror-row-ready, 12 s)*
 
-> The mirror itself, on the explorer. The block number, status success, method
-> `onEvent`, sent **from the CopyHandler contract**. No externally owned account
-> signed this. That is Somnia reactivity placing a follower's trade in the
-> leader's block.
+## The explorer — 2:53
 
-## 7 · Close (2:00)
+> Here is the mirror on the Shannon explorer. Status success, method onEvent, sent from the CopyHandler contract. No externally owned account signed this. That is Somnia reactivity placing a follower's trade in the leader's block.
 
-*(back to the landing proof strip)*
+*(explorer-tx, 12 s)*
 
-> Followers redeem their mirrored winnings through the vault. A Telegram bot
-> exposes the same flow. Everything you have seen is a real transaction on
-> Shannon, and the code, the contracts, and a twenty-item feedback report on
-> the DreamDEX SDK are all in the repo. TapFlow.
+## Telegram
+
+> The same flow lives in Telegram. The bot reads the live book, shows the leaderboard, and opens the app as a mini-app, so a follower never needs a browser.
+
+*(telegram, 8 s — not in the current cut. Drop a phone clip at `docs/media/telegram.mp4`
+and re-run `node scripts/cut-demo.mjs`; see [TELEGRAM-CLIP.md](TELEGRAM-CLIP.md) for the shot list.)*
+
+## Close — 3:09
+
+> Followers redeem mirrored winnings through the vault. Every number you saw is read live from Somnia Shannon, and every transaction is real.
+>
+> The code, the contracts, and a twenty-item feedback report on the DreamDEX SDK are in the repo. TapFlow: tap once, and the chain copies you in the same block.
+
+*(close, 17 s)*
 
 ---
 

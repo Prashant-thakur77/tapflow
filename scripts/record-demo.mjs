@@ -89,6 +89,20 @@ const scene = async (name) => {
   console.log(`${at.toFixed(1).padStart(6)}s  #${idx} ${name}`);
 };
 const hold = (ms) => page.waitForTimeout(ms);
+// When the narration has been generated, each scene stays on screen at least as
+// long as its lines take to say (plus a beat), so the voiced cut never freezes.
+let NARR = {};
+try {
+  NARR = JSON.parse(fs.readFileSync(path.join(outDir, "..", "video", "tts", "durations.json"), "utf8"));
+} catch {
+  try { NARR = JSON.parse(fs.readFileSync("video/tts/durations.json", "utf8")); } catch { /* silent take */ }
+}
+const need = (name) => (NARR[name] ?? []).reduce((a, b) => a + b, 0) * 1000;
+/** hold the rest of a scene: `spent` ms already shown, split across `parts` further holds */
+const holdFor = async (name, spentMs, fallbackMs) => {
+  const total = Math.max(fallbackMs, need(name) + 1500 - spentMs);
+  await hold(Math.max(500, total));
+};
 const scroll = async (y, steps = 14) => {
   for (let i = 1; i <= steps; i++) {
     await page.mouse.wheel(0, y / steps);
@@ -126,17 +140,17 @@ await page.goto(APP, { waitUntil: "domcontentloaded" });
 await waitText("live windows", 30000);
 await waitText("closes", 30000); // the hero ring has a real window
 await scene("landing");
-await hold(4500);
+await hold(Math.max(4500, need("landing") * 0.45));
 await scroll(620);
-await hold(4500);
+await holdFor("landing", Math.max(4500, need("landing") * 0.45) + 1000, 4500);
 
 // ── 2 · tap screen ───────────────────────────────────────────────────────
 await page.goto(`${APP}/tap`, { waitUntil: "domcontentloaded" });
 await waitText("if right", 75000);
 await scene("tap");
-await hold(5000);
+await hold(Math.max(5000, need("tap") * 0.4));
 await scroll(380);
-await hold(5000);
+await hold(Math.max(5000, need("tap") * 0.3));
 await scroll(-380);
 await hold(800);
 const up = page.getByRole("button", { name: /^UP/ }).first();
@@ -146,7 +160,7 @@ const down = page.getByRole("button", { name: /^DOWN/ }).first();
 await down.hover().catch(() => {});
 await hold(1300);
 await page.getByRole("button", { name: "ETH", exact: true }).first().click().catch(() => {});
-await hold(4500);
+await holdFor("tap", Math.max(5000, need("tap") * 0.4) + 1000 + Math.max(5000, need("tap") * 0.3) + 800 + 2600, 4500);
 
 // ── 3 · markets ──────────────────────────────────────────────────────────
 await page.goto(`${APP}/markets`, { waitUntil: "domcontentloaded" });
@@ -156,23 +170,23 @@ await waitText("→", 60000);
 await page.locator("text=→").nth(5).waitFor({ timeout: 40000 }).catch(() => {});
 await hold(1500);
 await scene("markets");
-await hold(4000);
+await hold(Math.max(4000, need("markets") * 0.45));
 await page.getByText("embed", { exact: false }).first().hover().catch(() => {});
-await hold(3000);
+await holdFor("markets", Math.max(4000, need("markets") * 0.45), 3000);
 
 // ── 4 · leaders ──────────────────────────────────────────────────────────
 await page.goto(`${APP}/leaders`, { waitUntil: "domcontentloaded" });
 await waitText("Agent leaders", 45000);
 await scene("leaders");
-await hold(6000);
+await hold(Math.max(6000, need("leaders") * 0.5));
 await scroll(420);
-await hold(6000);
+await holdFor("leaders", Math.max(6000, need("leaders") * 0.5) + 900, 6000);
 
 // ── 5 · live proof ───────────────────────────────────────────────────────
 await page.goto(`${APP}/proof`, { waitUntil: "domcontentloaded" });
 await waitText("Latest mirrors", 45000);
 await scene("proof");
-await hold(5000);
+await holdFor("proof", 0, 5000);
 const before = await page.locator("table tbody tr").first().innerText().catch(() => "");
 
 await scene("mirror-live");
@@ -219,10 +233,11 @@ await hold(2500);
 
 // Wait for the proof page to refetch (15s) and show the new row at the top.
 await scene("mirror-row");
-// The indexer polls every 15 s and the page refetches every 15 s: allow ~90 s.
-// The cut keeps only a few seconds of this wait; scene markers say where.
+// The indexer polls every 15 s and the page refetches every 15 s, and a busy
+// scanner can take a few minutes: allow ~4 min. The cut keeps only a few
+// seconds of this wait; the scene markers say where it starts and ends.
 let rowShown = false;
-for (let i = 0; i < 30; i++) {
+for (let i = 0; i < 80; i++) {
   await hold(3000);
   const now = await page.locator("table tbody tr").first().innerText().catch(() => "");
   if (now && now !== before && (!proof.block || now.includes(String(proof.block)))) {
@@ -252,7 +267,7 @@ if (proof.reactiveTx) {
   await page.getByText("onEvent", { exact: false }).first().waitFor({ timeout: 30000 }).catch(() => {});
   await hold(1500);
   await scene("explorer-tx");
-  await hold(11000);
+  await holdFor("explorer-tx", 0, 11000);
 }
 
 // ── 7 · close ────────────────────────────────────────────────────────────
@@ -260,7 +275,7 @@ await page.goto(APP, { waitUntil: "domcontentloaded" });
 await waitText("PROVEN ON SHANNON", 30000);
 await scene("close");
 await scroll(620);
-await hold(9000);
+await holdFor("close", 900, 9000);
 await scene("end");
 await hold(1500);
 
