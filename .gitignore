@@ -27,6 +27,8 @@ dist-ssr
 .env
 .env.*
 !.env.example
+# public build-time values only (the WalletConnect project id)
+!.env.production
 .env.*.local
 
 # Web3/crypto
@@ -41,6 +43,7 @@ refs/
 .env
 .env.*
 !.env.example
+!.env.production
 market.json
 
 # subproject build + data
