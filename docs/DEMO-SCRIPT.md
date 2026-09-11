@@ -97,10 +97,15 @@ Needs the leader key in `.env`, and TapBot paused so the two never race on a non
 
 ## Telegram
 
-> The same flow lives in Telegram. The bot reads the live book, and one command places a real order from the chat, with the fill and the transaction in the reply. The app opens as a mini-app, so a follower never needs a browser.
+> The same flow lives in Telegram, and it is not a link to a website. The bot reads the same live book, so one command places a real immediate-or-cancel order on chain, straight from the chat.
+>
+> The reply carries the fill: the shares, the price paid, what it pays if the window closes your way, and the transaction on the Shannon explorer.
+>
+> The leaderboard is the same one, built from chain. And the app opens as a mini-app inside Telegram, so someone can take their first real position without a browser and without a wallet.
 
-*(telegram, 12 s — not in the current cut. Drop a phone clip at `docs/media/telegram.mp4`
-and re-run `node scripts/cut-demo.mjs`; see [TELEGRAM-CLIP.md](TELEGRAM-CLIP.md) for the shot list.)*
+*(telegram, 26 s — not in the current cut. Record 35-45 s on the phone, save it at
+`docs/media/telegram.mp4` and re-run `node scripts/cut-demo.mjs`; the shot list is
+[TELEGRAM-CLIP.md](TELEGRAM-CLIP.md).)*
 
 ## Close — 3:09
 

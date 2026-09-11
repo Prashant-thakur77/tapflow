@@ -191,13 +191,34 @@ named.forEach((m, i) => {
     cur = pb;
   });
 });
-// the phone clip, before the closing scene
-if (fs.existsSync(TELEGRAM) && LINES.telegram) {
-  const wav = path.join(ttsDir, "telegram-0.wav");
-  const at = segs.findIndex((s) => s.scene === "close");
-  const seg = { kind: "clip", file: TELEGRAM, text: LINES.telegram[0], wav, audio: (D.telegram ?? [0])[0] ?? 0, scene: "telegram", k: 0 };
-  segs.splice(at < 0 ? segs.length : at, 0, seg);
-  console.log(`splicing ${TELEGRAM} before the close`);
+// The phone clip, before the closing scene. Its lines are spread across the
+// clip the way a scene's lines are spread across its shot: each line gets a
+// slice of the footage. A clip longer than the narration plays faster (up to
+// 1.8x) so all of it is seen rather than the tail being cut off; a clip shorter
+// than the narration holds its last frame.
+if (fs.existsSync(TELEGRAM) && LINES.telegram?.length) {
+  const lines = LINES.telegram;
+  const durs = D.telegram ?? lines.map(() => 0);
+  const clipLen = probe(TELEGRAM);
+  const need = durs.reduce((a, b) => a + b, 0) + LEAD + TAIL;
+  const speed = Math.min(Math.max(clipLen / Math.max(need, 1), 1), 1.8);
+  const shown = Math.min(clipLen / speed, need); // seconds of finished picture
+  const weights = lines.map((_, k) => Math.max(durs[k] ?? 0, 0.5));
+  const sum = weights.reduce((a, b) => a + b, 0);
+  const at = segs.findIndex((x) => x.scene === "close");
+  let outAt = 0;
+  const clipSegs = lines.map((text, k) => {
+    const p = k === lines.length - 1 ? shown - outAt : (shown * weights[k]) / sum;
+    const seg = {
+      kind: "clip", file: TELEGRAM, scene: "telegram", k, text,
+      srcStart: outAt * speed, srcLen: Math.min(p * speed, Math.max(clipLen - outAt * speed, 0.1)), speed, picture: p,
+      wav: path.join(ttsDir, `telegram-${k}.wav`), audio: durs[k] ?? 0,
+    };
+    outAt += p;
+    return seg;
+  });
+  segs.splice(at < 0 ? segs.length : at, 0, ...clipSegs);
+  console.log(`splicing ${TELEGRAM}: ${clipLen.toFixed(1)}s of footage at ${speed.toFixed(2)}x over ${lines.length} lines (${shown.toFixed(1)}s on screen)`);
 } else if (LINES.telegram) {
   console.log(`no ${TELEGRAM} — skipping the Telegram scene`);
 }
@@ -222,22 +243,16 @@ segs.forEach((s, i) => {
     return;
   }
   const need = wavOk ? LEAD + spoken + TAIL : 0;
-  // A phone clip is usually longer than its line: play it up to 1.8x so all of
-  // it lands inside the narration rather than trimming the end off.
-  const room = Math.max(need, 6);
-  const clipLen = s.kind === "clip" ? probe(s.file) : 0;
-  const speed = s.kind === "clip" ? Math.min(Math.max(clipLen / room, 1), 1.8) : 1;
-  const picture = s.kind === "clip" ? Math.min(clipLen / speed, room) : s.b - s.a;
+  const picture = s.kind === "clip" ? s.picture : s.b - s.a;
   const dur = Math.max(picture, need, 1);
   const pad = Math.max(0, dur - picture) + 0.5; // clone the last frame if the voice outruns the picture
   const vin = s.kind === "clip"
-    ? ["-t", Math.min(clipLen, picture * speed).toFixed(3), "-i", s.file]
+    ? ["-ss", s.srcStart.toFixed(3), "-t", s.srcLen.toFixed(3), "-i", s.file]
     : ["-ss", s.a.toFixed(3), "-t", picture.toFixed(3), "-i", silent];
   const scale = s.kind === "clip"
-    ? `scale=${W}:${H}:force_original_aspect_ratio=decrease,pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:color=#0b101c,setsar=1,setpts=PTS/${speed.toFixed(4)},`
+    ? `scale=${W}:${H}:force_original_aspect_ratio=decrease,pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:color=#0b101c,setsar=1,setpts=PTS/${s.speed.toFixed(4)},`
     : "";
   const vf = `[0:v]${scale}fps=25,tpad=stop_mode=clone:stop_duration=${pad.toFixed(3)},setpts=PTS-STARTPTS[v]`;
-  if (s.kind === "clip") console.log(`  telegram clip ${clipLen.toFixed(1)}s at ${speed.toFixed(2)}x`);
   const af = wavOk
     ? `[1:a]${AFMT},adelay=${Math.round(LEAD * 1000)},apad,asetpts=PTS-STARTPTS[a]`
     : `[1:a]${AFMT},asetpts=PTS-STARTPTS[a]`;

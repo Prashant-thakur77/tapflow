@@ -1,17 +1,26 @@
 # The Telegram shot (phone screen recording)
 
-The video has a slot for a phone clip just before the closing scene, with this
-line already recorded over it:
+The video has a slot for a phone clip just before the closing scene. It runs
+**about 27 seconds** and three narration lines are already recorded over it:
 
-> The same flow lives in Telegram. The bot reads the live book, and one command
-> places a real order from the chat, with the fill and the transaction in the
-> reply. The app opens as a mini-app, so a follower never needs a browser.
+> The same flow lives in Telegram, and it is not a link to a website. The bot
+> reads the same live book, so one command places a real immediate-or-cancel
+> order on chain, straight from the chat.
+>
+> The reply carries the fill: the shares, the price paid, what it pays if the
+> window closes your way, and the transaction on the Shannon explorer.
+>
+> The leaderboard is the same one, built from chain. And the app opens as a
+> mini-app inside Telegram, so someone can take their first real position
+> without a browser and without a wallet.
 
-That line runs **11.8 s**. Record **25-35 s** and the cut speeds the clip up to
-1.8x so all of it lands inside the line — there is no need to rush on camera.
+**Record 35 to 45 seconds.** The cut fits whatever you give it into those 27
+seconds, playing the footage up to 1.8x, so more footage means a fuller shot
+rather than a trimmed one. Under about 27 seconds and the last frame has to
+freeze while the narration finishes, so do not come in short.
 
-The whole point of the shot is the second beat: **a real on-chain order placed
-from a chat window, by someone with no wallet**. Everything else is context.
+The point of the shot is the second beat: **a real on-chain order placed from a
+chat window, by someone with no wallet.** Everything else is context.
 
 ## Before you press record
 
@@ -25,30 +34,35 @@ from a chat window, by someone with no wallet**. Everything else is context.
 
 ## The shots, in order
 
-1. **The bot card.** Hold 2 s on the `/start` card, long enough to read the name
-   and the ⚡ Open TapFlow button.
-2. **`/window ETH 5m`.** Send it, wait for the reply card, hold 3 s on the odds,
-   the countdown and the UP/DOWN buttons.
-3. **`/up 5`. This is the shot.** Send it. The bot answers "⏳ UP · 5 tUSDC…",
-   then edits that message into the fill: shares, price, what it pays if right,
-   the countdown to settlement, and a link to the Shannon explorer. Hold 5 s on
-   the filled message so every line is readable. If you can, tap the explorer
-   link and hold 3 s on the transaction page, then come back.
-4. **🏆 Leaderboard.** Press the button, hold 3 s on the board.
-5. **⚡ Open TapFlow.** Press it. The mini-app opens inside Telegram. Wait for
-   the tap screen to paint, hold 4 s, stop.
+Times are how long to stay on each thing while recording, not how long they
+appear in the video.
+
+1. **The bot card — 3 s.** Long enough to read the name and the ⚡ Open TapFlow
+   button.
+2. **`/window ETH 5m` — 5 s.** Send it, wait for the reply card, hold on the
+   odds, the countdown and the UP/DOWN buttons.
+3. **`/up 5` — 8 s. This is the shot.** Send it. The bot answers
+   "⏳ UP · 5 tUSDC…", then edits that message into the fill: shares, price,
+   what it pays if right, the countdown to settlement, and a link to the
+   explorer. Stay on the filled message until every line has been readable for a
+   couple of seconds.
+4. **The transaction — 7 s.** Tap the explorer link, let the page paint, hold on
+   it, then come back to the chat. Skip this if the page is slow; do not sit on
+   a spinner.
+5. **🏆 Leaderboard — 5 s.** Press the button, hold on the board.
+6. **⚡ Open TapFlow — 7 s.** The mini-app opens inside Telegram. Wait for the
+   tap screen to paint, then hold on the live window.
+7. **Optional, CONNECT — 5 s.** Press Connect in the mini-app. WalletConnect
+   opens and offers MetaMask on the same phone, which proves a judge can sign
+   with their own wallet from inside Telegram. Do not complete a trade; the
+   desktop footage already covers tapping.
+
+That adds up to about 40 seconds, which is the sweet spot.
 
 If a window is closing as you record, `/up 5` may answer "No live ETH 5m window
 with enough time left" or "Book moved, nothing filled". Both are honest, but
 neither is the shot. Send `/window` again, wait for a fresh window with a minute
 or more left, and retry.
-
-## Optional, if you want the wallet beat too
-
-Inside the mini-app, press **CONNECT**. WalletConnect opens and offers MetaMask
-on the same phone. That proves a judge can sign with their own wallet from
-inside Telegram. Keep it to about 5 s and do not complete a trade; the desktop
-footage already covers tapping.
 
 ## Do not
 
