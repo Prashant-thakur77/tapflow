@@ -1,74 +1,79 @@
-# The Details field — paste this markdown into DoraHacks
-
-Everything below the line goes into the "Details" box. It is plain markdown;
-the YouTube link on its own line becomes an embedded player.
-
----
-
 https://youtu.be/xzKF1KN3L9E
 
-## The problem
+## Problem
 
-Prediction markets are solo and slow to act on. Every trade is connect, approve, read an order book, sign, wait. And if you want to copy someone who is good at it, you can't — not on-chain, and not in time.
+Trading a prediction market is a solo activity. You connect a wallet, approve a token, read an order book, sign, and wait. If you find someone who trades these windows well, there is no way to follow them on chain in time to matter.
 
-Copy trading everywhere else runs on bots and relayers that react **after** the leader's trade is already on chain. By the time your copy lands, the price has moved. On a five-minute window, a block late is too late.
+Copy trading products solve this with bots and relayers. They watch for the leader's transaction, then send their own, which means the copy lands at least one block later. DreamDEX windows run as short as five minutes, and the price moves inside that gap.
 
-## What TapFlow does
+## How TapFlow works
 
-**One tap.** Every live DreamDEX Event Contract becomes a one-tap UP or DOWN call. Your stake becomes a real immediate-or-cancel order on the live on-chain book, quoted over the book and sized on the venue's own tick and lot grid. Fund a capped session wallet once — two signatures — and every tap and every claim after that signs itself. No wallet popup.
+A tap is a real immediate-or-cancel order on the live on-chain book. We quote the stake over the book and size it on the venue's tick and lot grid, so the order is priced the way the venue expects rather than rounded by us. Funding a capped session wallet takes two signatures, after which taps and claims sign themselves without a wallet popup.
 
-**Same block.** A leader's tap is broadcast through a `Router` contract. Somnia's reactivity precompile invokes our `CopyHandler` **inside the very block that emits the event**, and it places each follower's proportional order through a capped `MirrorVault`. No keeper. No relayer. No next-block lag.
+Copying works differently from the bot approach. The leader's tap is broadcast through a Router contract. Somnia's reactivity precompile invokes our CopyHandler inside the block that emits the event, and the handler places each follower's proportional order through a capped MirrorVault. There is no keeper process and no relayer, because nothing is watching for the event off chain.
 
-That is the part only Somnia makes possible, and it is not a claim:
+## What is on chain
 
-| | |
+| Measure | Value |
 |---|---|
-| Reactive mirrors | **102** |
-| Landed in the leader's own block | **102 — 100%** |
-| Filled | 71; the rest declined **on-chain, with a reason code** |
-| Indexed from chain | 416 wallets · 13,696 taps · 87,230 tUSDC · 772 windows |
-| Foundry tests | 19 / 19 |
+| Reactive mirrors placed | 102 |
+| Landed in the leader's block | 102 (100%) |
+| Filled | 71 |
+| Declined with an on-chain reason code | 31 |
+| Wallets, taps, volume, windows indexed | 416 / 13,696 / 87,230 tUSDC / 772 |
+| Foundry tests | 19 of 19 |
 
-A worked example, openable right now: [block 485621955](https://shannon-explorer.somnia.network/block/485621955) — the leader's broadcast and the follower's mirror, in one block. Open the reactive transaction and it says `Success`, method `onEvent`, **sent from the CopyHandler contract**. No externally owned account signed it.
+Block [485621955](https://shannon-explorer.somnia.network/block/485621955) contains a leader broadcast and the follower's mirror. Opening the reactive transaction shows status Success, method `onEvent`, and the sender is the CopyHandler contract rather than an externally owned account.
 
-Every mirror is paired with the broadcast that triggered it on the live proof page: **https://tapflow-phi.vercel.app/proof**
+The [proof page](https://tapflow-phi.vercel.app/proof) pairs every mirror with the broadcast that triggered it, and links both to the explorer.
 
-## Honest about the failure path
+## When a mirror does not fill
 
-A mirror that places nothing is not hidden. The leader's own IOC order consumes the book at their limit, so a follower priced identically can find no liquidity microseconds later. v4 pays a bounded cushion over the leader (15% of the leg, at most 5 points, never above 97 cents, never below the leader), floors the size to the venue lot, and returns a **reason code that the handler puts on chain** for every mirror that fills nothing. A second reactive contract, `RiskGuard`, pauses a follower who hits their max-loss cap.
+31 of the 102 mirrors placed no order, and the contract records why. The cause is structural: the leader's own IOC order consumes the book at their limit price, so a follower priced identically finds nothing microseconds later.
 
-## What is built
+The current version pays a bounded cushion over the leader, capped at 15% of the leg, 5 points, and never above 97 cents or below the leader's own price. Quantities are floored to the venue lot so an off-grid size cannot revert silently. Every mirror that fills nothing returns a reason code that the handler writes on chain. A second reactive contract, RiskGuard, pauses a follower once they hit their configured max loss.
 
-- **Tap screen** — countdown, price against the window's open, crowd odds from one-minute candles, top positions read from the pool's own logs, payout on the chip rather than just the odds. Arrow keys tap.
-- **Session keys** — a capped, 30-minute session wallet; unspent funds sweep back.
-- **Four contracts** — `Router`, `MirrorVault`, `CopyHandler`, `RiskGuard`. Two live reactivity subscriptions, both funded.
-- **Indexer** — builds fills, windows and results from pool logs rather than trusting the upstream indexer, which times out regularly. The app races both sources and takes whichever answers first.
-- **TapBot** — a momentum agent that taps as a public leader you can follow like any human, behind a risk gate that **publishes every trade it declines to take, with a reason code** (price above 90¢, spread wider than the edge, cooling down, exposure cap). It auto-claims its winnings.
-- **Telegram bot** — [@TapFlowSomniaBot](https://t.me/TapFlowSomniaBot). `/window` reads the live book, `/up 5` places a **real** immediate-or-cancel order from the chat and replies with the fill and its transaction, `/board` is the chain-built leaderboard, and the app opens as a mini-app.
-- **Embeddable cards** — any Somnia dapp can drop a live tap card into an iframe.
+## Features
 
-## Contracts (Somnia Shannon, chain 50312)
+Tap screen with the countdown, price against the window open, crowd odds built from one-minute candles, and the positions on that window read from the pool's own logs. Payout is shown on the button rather than the raw odds. Arrow keys place taps.
+
+Session keys, capped and expiring after 30 minutes, with unspent funds swept back.
+
+Four contracts: Router, MirrorVault, CopyHandler, RiskGuard, with two funded reactivity subscriptions.
+
+An indexer that builds fills, windows and results from pool logs. The upstream indexer times out often enough that we treat it as optional: the app starts both sources together and uses whichever answers first.
+
+TapBot, a momentum agent that trades as a public leader anyone can follow. It runs behind a risk gate and publishes the trades it declines along with the reason, such as price above 90 cents, spread wider than the edge, or a cooldown. It claims its own winnings.
+
+A Telegram bot, [@TapFlowSomniaBot](https://t.me/TapFlowSomniaBot). `/window` reads the live book, `/up 5` places a real order from the chat and replies with the fill and transaction, `/board` is the leaderboard, and the app opens as a mini-app.
+
+Embeddable tap cards, so another Somnia app can drop a live window into an iframe.
+
+## Contracts on Somnia Shannon (chain 50312)
 
 | Contract | Address |
 |---|---|
 | Router | [`0x512009743f48A924F679907ca9E206b706d499Cc`](https://shannon-explorer.somnia.network/address/0x512009743f48A924F679907ca9E206b706d499Cc) |
 | MirrorVault | [`0x535A2F473f073AB27FAd8F65ECD5Fe1203C8aE95`](https://shannon-explorer.somnia.network/address/0x535A2F473f073AB27FAd8F65ECD5Fe1203C8aE95) |
-| CopyHandler | [`0x969B4F8c0106379b553232D9aFcf35B77F32b321`](https://shannon-explorer.somnia.network/address/0x969B4F8c0106379b553232D9aFcf35B77F32b321) — reactivity subscription `16910004` |
-| RiskGuard | [`0x03A52EE60b30537fa57C889795576E63CFCaE3b7`](https://shannon-explorer.somnia.network/address/0x03A52EE60b30537fa57C889795576E63CFCaE3b7) — subscription `17880662` |
+| CopyHandler | [`0x969B4F8c0106379b553232D9aFcf35B77F32b321`](https://shannon-explorer.somnia.network/address/0x969B4F8c0106379b553232D9aFcf35B77F32b321), subscription 16910004 |
+| RiskGuard | [`0x03A52EE60b30537fa57C889795576E63CFCaE3b7`](https://shannon-explorer.somnia.network/address/0x03A52EE60b30537fa57C889795576E63CFCaE3b7), subscription 17880662 |
 
-## DreamDEX surface used
+## SDK surface used
 
-`listLiveBinaryMarkets`, `getMarketOnchain`, `getBinaryOrderBook`, `getBinaryBookParams`, `quoteBinaryStakeOverBook`, `trader.placeOrder` (IOC), `trader.faucet`, `getOutcomeBalance`, `getClaimable`, `trader.redeem`, `getUserFills` / `getFills`, `fetchPrice` / `useLivePriceTicks` and the React live hooks — plus `@somnia-chain/reactivity-contracts`: `SomniaEventHandler` and `SomniaExtensions.subscribe`.
+`listLiveBinaryMarkets`, `getMarketOnchain`, `getBinaryOrderBook`, `getBinaryBookParams`, `quoteBinaryStakeOverBook`, `trader.placeOrder` with IOC, `trader.faucet`, `getOutcomeBalance`, `getClaimable`, `trader.redeem`, `getUserFills`, `getFills`, `fetchPrice`, `useLivePriceTicks`, and the React live hooks. Reactivity comes from `@somnia-chain/reactivity-contracts`, using `SomniaEventHandler` and `SomniaExtensions.subscribe`.
 
-We wrote up everything that cost us time in a **20-item feedback report on the SDK and docs**, in the repo as `SDK-FEEDBACK.md`.
+The repo includes `SDK-FEEDBACK.md`, 20 items covering what was unclear or cost us time in the SDK and the docs.
 
-## Try it
+## Links
 
-- **App:** https://tapflow-phi.vercel.app — no wallet needed to look around; every page reads live from chain
-- **Proof:** https://tapflow-phi.vercel.app/proof
-- **Telegram:** https://t.me/TapFlowSomniaBot — `/up 5` places a real order with no wallet at all
-- **Code:** https://github.com/Prashant-thakur77/tapflow
+App: https://tapflow-phi.vercel.app. No wallet is needed to look around, since every page reads from chain.
 
-## Scope, honestly
+Proof: https://tapflow-phi.vercel.app/proof
 
-Somnia Shannon testnet only, and the keys in the demo are throwaways. The session-key pattern stores a capped key in `localStorage`, which is right for a testnet demo and wrong for mainnet — the non-custodial operator path is researched but not shipped. 1.30 winning shares from before a contract upgrade are stranded in a retired vault that had no redeem function; we left the note in the README rather than quietly dropping it.
+Telegram: https://t.me/TapFlowSomniaBot
+
+Code: https://github.com/Prashant-thakur77/tapflow
+
+## Limitations
+
+This runs on Somnia Shannon testnet and the keys used in the demo are throwaways. The session key is stored in `localStorage` with a spending cap, which suits a testnet demo but is not the right pattern for mainnet; the non-custodial operator route is researched in the repo but not shipped. 1.30 winning shares are stranded in a retired vault from before an upgrade that added redemption, and the README says so rather than leaving it out.
