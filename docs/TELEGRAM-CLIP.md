@@ -1,7 +1,9 @@
 # The Telegram shot (phone screen recording)
 
-The video has a slot for a phone clip just before the closing scene. It runs
-**about 27 seconds** and three narration lines are already recorded over it:
+**Shot and cut — this is a record of what is in the video, kept for a re-cut.**
+
+The section runs about 27 seconds, just before the closing scene, under three
+narration lines:
 
 > The same flow lives in Telegram, and it is not a link to a website. The bot
 > reads the same live book, so one command places a real immediate-or-cancel
@@ -14,13 +16,46 @@ The video has a slot for a phone clip just before the closing scene. It runs
 > mini-app inside Telegram, so someone can take their first real position
 > without a browser and without a wallet.
 
-**Record 35 to 45 seconds.** The cut fits whatever you give it into those 27
-seconds, playing the footage up to 1.8x, so more footage means a fuller shot
-rather than a trimmed one. Under about 27 seconds and the last frame has to
-freeze while the narration finishes, so do not come in short.
+## What is in the cut
 
-The point of the shot is the second beat: **a real on-chain order placed from a
-chat window, by someone with no wallet.** Everything else is context.
+The raw recording is 2 min 08 s of portrait footage. `docs/media/telegram.mp4`
+is a 32.5 s selection from it, chosen so each beat lands under the line that
+describes it, and the cut plays it at 1.21x to fit the narration exactly.
+
+| Source | Beat | Under |
+|---|---|---|
+| 0.5-4.0 | the bot's card: what TapFlow is, the command list | "not a link to a website" |
+| 14.0-17.5 | typing `/window` | "the bot reads the same live book" |
+| 27.5-32.4 | the live ETH 5m window, its odds, and UP 1 pressed | "one command places a real order" |
+| 33.0-36.0 | the order going in | "the reply carries the fill" |
+| 38.0-44.4 | **UP filled · 17.85 shares @ 4% for 0.71 tUSDC · pays 17.85 if right · view on Shannon explorer** | "the shares, the price paid, what it pays" |
+| 48.0-51.3 | the chain-built leaderboard, TapBot among the tappers | "the leaderboard is the same one" |
+| 61.3-64.3 | the mini-app opening inside Telegram | "the app opens as a mini-app" |
+| 71.3-76.7 | the live tap screen, wallet `0xf2f8…7f97` connected | "without a browser and without a wallet" |
+
+Left out on purpose: the long waits between commands, the mini-app's loading
+screens, the wallet dropdown covering the countdown, and the History tab, which
+honestly said it had no fills yet for that wallet.
+
+## To re-cut it from the raw recording
+
+The raw file is not in the repo (98 MB). Rebuild the selection with the trim
+ranges in the table above, save it as `docs/media/telegram.mp4`, then:
+
+```bash
+cd /home/prashant/tapflow
+node scripts/cut-demo.mjs ./video3
+cp video3/out.mp4 docs/media/tapflow-demo.mp4
+cp video3/out-silent.mp4 docs/media/tapflow-demo-silent.mp4
+```
+
+The cut scales the portrait clip onto the video's own background, speeds it up
+to at most 1.8x so none of it is trimmed, splits it across the three lines in
+proportion to their length, and burns the captions.
+
+---
+
+# If you ever need to shoot it again
 
 ## Before you press record
 

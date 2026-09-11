@@ -1,8 +1,9 @@
 # Demo script
 
-Final cut: **3:31**, 1280×800, narrated, [`docs/media/tapflow-demo.mp4`](media/tapflow-demo.mp4).
+Final cut: **3:59**, 1280×800, narrated, [`docs/media/tapflow-demo.mp4`](media/tapflow-demo.mp4).
 The mirror placed on camera is [block 484969998](https://shannon-explorer.somnia.network/block/484969998).
-A picture-only cut is at [`tapflow-demo-silent.mp4`](media/tapflow-demo-silent.mp4) if you would rather read the lines yourself.
+A picture-only cut of the recorded take is at [`tapflow-demo-silent.mp4`](media/tapflow-demo-silent.mp4),
+for reading the lines live. It is the screen recording alone, so it does not include the phone clip.
 
 Everything is recorded by Playwright against the running app and the **live**
 chain: every number on screen is real, and the proof scene places a real leader
@@ -95,7 +96,7 @@ Needs the leader key in `.env`, and TapBot paused so the two never race on a non
 
 *(explorer-tx, 12 s)*
 
-## Telegram
+## Telegram — 3:09
 
 > The same flow lives in Telegram, and it is not a link to a website. The bot reads the same live book, so one command places a real immediate-or-cancel order on chain, straight from the chat.
 >
@@ -103,11 +104,9 @@ Needs the leader key in `.env`, and TapBot paused so the two never race on a non
 >
 > The leaderboard is the same one, built from chain. And the app opens as a mini-app inside Telegram, so someone can take their first real position without a browser and without a wallet.
 
-*(telegram, 26 s — not in the current cut. Record 35-45 s on the phone, save it at
-`docs/media/telegram.mp4` and re-run `node scripts/cut-demo.mjs`; the shot list is
-[TELEGRAM-CLIP.md](TELEGRAM-CLIP.md).)*
+*(telegram, 26 s)*
 
-## Close — 3:09
+## Close — 3:36
 
 > Followers redeem mirrored winnings through the vault. Every number you saw is read live from Somnia Shannon, and every transaction is real.
 >
