@@ -88,7 +88,7 @@ reach it. Both fixes are in:
 - **WalletConnect.** `src/components/Provider.tsx` adds the connector whenever
   `VITE_WALLETCONNECT_PROJECT_ID` is set at build time, and `pickConnector()` in
   `src/lib/wallet.ts` chooses injected when the browser has one and
-  WalletConnect otherwise. **Still needs the id** (free, cloud.reown.com), then:
+  WalletConnect otherwise. The id is set and deployed; to rebuild:
 
   ```bash
   cd /home/prashant/tapflow
@@ -98,6 +98,14 @@ reach it. Both fixes are in:
   ```
 
   Unset, the app behaves exactly as it did before.
+
+  **Done 11 Sep:** project id `2e99f945bb9d1b9f4677a85e095b085d` (Reown project
+  "Tapflow") is committed in `.env.production` and deployed to
+  https://tapflow-phi.vercel.app. Verified headless in a browser with no
+  injected provider: Connect opens the WalletConnect modal with a live pairing
+  URI and the wallet list. The Reown dashboard has **no domain allowlist** set,
+  which means unrestricted — leave it that way until after judging, because an
+  allowlist with the wrong hostname silently breaks Connect.
 
 ## Laptop services (restart after any reboot)
 

@@ -211,10 +211,11 @@ are three ways in, and TapFlow ships all three.
   It is a shared demo wallet and the bot says so: the shares belong to it, not
   to whoever typed the command. That is the fastest way to see a real Shannon
   transaction from a phone, with nothing to install.
-- **WalletConnect, to sign with your own MetaMask.** Set
-  `VITE_WALLETCONNECT_PROJECT_ID` (free from cloud.reown.com) at build time and
-  the mini-app's Connect button deep-links into MetaMask on the same phone.
-  Without the id the app falls back to injected-only and still reads the chain.
+- **WalletConnect, to sign with your own MetaMask.** Live on the deployed app:
+  press Connect inside the mini-app and it pairs with MetaMask (or any of ~90
+  WalletConnect wallets) on the same phone. The project id is public and is
+  committed in [`.env.production`](.env.production); a build without it falls
+  back to injected-only and still reads the chain.
 - **MetaMask's own browser.** Paste the app URL into the browser inside
   MetaMask mobile. That page has a real injected provider, so connect, tap,
   follow and claim all work with no extra setup.
