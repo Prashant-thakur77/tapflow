@@ -49,8 +49,8 @@ export const Header: React.FC = () => {
 
   return (
     <header
-      className="h-14 flex items-center justify-between px-3 sm:px-4 xl:px-6 sticky top-0 z-40 gap-3"
-      style={{ background: "rgba(22, 20, 42, 0.4)", backdropFilter: "blur(20px)", borderBottom: "2px solid rgba(255,255,255,0.05)", fontFamily: "'Manrope', sans-serif" }}
+      className="h-14 flex items-center justify-between px-3 sm:px-4 xl:px-6 gap-3"
+      style={{ fontFamily: "'Manrope', sans-serif" }}
     >
       <div className="flex items-center gap-3 min-w-0">
         <div className="flex items-center gap-2 xl:hidden">
@@ -64,8 +64,8 @@ export const Header: React.FC = () => {
         <div className={chip} style={chipStyle}>
           {asset}/USD
         </div>
-        <span className="text-sm xl:text-base font-bold font-mono flex items-center gap-1.5 min-w-0">
-          <span className="truncate" style={{ color: "#2EBD85" }}>{spot ? `$${fmtPx(spot.price)}` : "—"}</span>
+        <span className="text-sm xl:text-base font-bold font-mono flex items-center gap-1.5 shrink-0 tabular">
+          <span style={{ color: "#2EBD85" }}>{spot ? `$${fmtPx(spot.price)}` : "—"}</span>
           <span className="flex h-1.5 w-1.5 relative shrink-0">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background: "#2EBD85" }} />
             <span className="relative inline-flex rounded-full h-1.5 w-1.5" style={{ background: "#2EBD85" }} />

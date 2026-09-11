@@ -33,9 +33,9 @@ const ago = (ms: number) => {
 };
 
 const StatTile: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <div className="tf-card p-3 sm:p-4">
-    <div className="text-[10px] uppercase tracking-[0.2em] text-bn-text-muted">{label}</div>
-    <div className="font-mono font-extrabold text-xl sm:text-2xl tabular mt-0.5">{value}</div>
+  <div className="tf-stat py-3">
+    <div className="k">{label}</div>
+    <div className="v text-lg sm:text-xl">{value}</div>
   </div>
 );
 
@@ -75,10 +75,10 @@ export const LeadersView: React.FC = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="tf-stats grid-cols-2 sm:grid-cols-4">
           <StatTile label="wallets" value={stats ? String(stats.wallets) : "—"} />
           <StatTile label="taps" value={stats ? String(stats.taps) : "—"} />
-          <StatTile label="volume" value={stats ? `${Math.round(stats.volumeUsdc).toLocaleString()}` : "—"} />
+          <StatTile label="volume · tUSDC" value={stats ? `${Math.round(stats.volumeUsdc).toLocaleString()}` : "—"} />
           <StatTile label="windows" value={stats ? String(stats.windows) : "—"} />
         </div>
 

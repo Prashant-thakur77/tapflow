@@ -147,55 +147,67 @@ export async function listLiveWindows(
   opts: { asset?: Asset; limit?: number } = {},
 ): Promise<TapWindow[]> {
   const t0 = Date.now();
-  let rows: Awaited<ReturnType<SomniaMarketsClient["listLiveBinaryMarkets"]>>;
-  try {
-    rows = await withTimeout(client.listLiveBinaryMarkets({ venueId: VENUE_ID, asset: opts.asset, limit: opts.limit ?? 40 }), UPSTREAM_TIMEOUT_MS);
-  } catch (e) {
-    // The upstream indexer times out regularly. Our own indexer discovers windows from
-    // MarketCreated logs and verifies them on-chain, so the tap screen stays live.
-    console.warn(`[tapflow] upstream indexer failed (${String(e).slice(0, 80)}) — using chain-discovered windows`);
-    return listLiveWindowsFallback(opts);
-  }
-  const fresh = rows.filter((r) => !onchainCache.has(r.marketId.toLowerCase())).length;
-  console.debug(`[tapflow] indexer: ${rows.length} live rows (${fresh} new) in ${Date.now() - t0}ms`);
+  // Two sources, started together, first useful answer wins.
+  //
+  // Upstream has richer rows (question, strike, volume) but times out most of
+  // the time; our own indexer discovers windows from MarketCreated logs and
+  // verifies each one on-chain. Waiting for upstream to time out before even
+  // asking ours left the tap screen blank for nine seconds on every cold load.
+  // A source that answers with an empty list does not count as an answer, so a
+  // fast "nothing" cannot beat a slower real list.
+  const nonEmpty = (ws: TapWindow[], who: string) => (ws.length ? ws : Promise.reject(new Error(`${who} empty`)));
+  const chain = listLiveWindowsFallback(opts).then((ws) => nonEmpty(ws, "chain"));
 
-  const onchain = await Promise.all(rows.map((r) => readOnchain(client, r.marketId)));
-  if (fresh) console.debug(`[tapflow] on-chain wiring for ${fresh} new rows in ${Date.now() - t0}ms`);
-
-  const out: TapWindow[] = [];
-  rows.forEach((r, i) => {
-    const oc = onchain[i];
-    const asset = asAsset(r.asset);
-    if (!oc || !asset) return;
-    if (oc.status !== MARKET_STATUS.Trading || oc.finalized) return;
-    out.push({
-      marketId: r.marketId,
-      pool: oc.pool,
-      marketAddress: oc.marketAddress,
-      asset,
-      intervalSec: Number(r.intervalSec ?? r.interval ?? 0),
-      expiry: Number(oc.expiry),
-      tradingStart: Number(r.tradingStart),
-      strike: r.strike ?? null,
-      question: r.question,
-      outcomeToken: oc.outcomeToken,
-      yesId: oc.yesId,
-      noId: oc.noId,
-      collateral: oc.collateral,
-      status: oc.status,
-      venueId: r.venueId ?? null,
-      operatorId: r.operatorId ?? null,
-      volumeUsdc: Number(r.cumulativeQuoteVolume ?? 0) / 10 ** (r.quoteDecimals ?? 6),
-      trades: Number(r.tradeCount ?? 0),
-      lastPrice: r.lastPrice ? Number(r.lastPrice) / 10 ** (r.quoteDecimals ?? 6) : null,
+  const upstream = (async (): Promise<TapWindow[]> => {
+    const rows = await withTimeout(
+      client.listLiveBinaryMarkets({ venueId: VENUE_ID, asset: opts.asset, limit: opts.limit ?? 40 }),
+      UPSTREAM_TIMEOUT_MS,
+    );
+    const fresh = rows.filter((r) => !onchainCache.has(r.marketId.toLowerCase())).length;
+    console.debug(`[tapflow] indexer: ${rows.length} live rows (${fresh} new) in ${Date.now() - t0}ms`);
+    const onchain = await Promise.all(rows.map((r) => readOnchain(client, r.marketId)));
+    const out: TapWindow[] = [];
+    rows.forEach((r, i) => {
+      const oc = onchain[i];
+      const asset = asAsset(r.asset);
+      if (!oc || !asset) return;
+      if (oc.status !== MARKET_STATUS.Trading || oc.finalized) return;
+      out.push({
+        marketId: r.marketId,
+        pool: oc.pool,
+        marketAddress: oc.marketAddress,
+        asset,
+        intervalSec: Number(r.intervalSec ?? r.interval ?? 0),
+        expiry: Number(oc.expiry),
+        tradingStart: Number(r.tradingStart),
+        strike: r.strike ?? null,
+        question: r.question,
+        outcomeToken: oc.outcomeToken,
+        yesId: oc.yesId,
+        noId: oc.noId,
+        collateral: oc.collateral,
+        status: oc.status,
+        venueId: r.venueId ?? null,
+        operatorId: r.operatorId ?? null,
+        volumeUsdc: Number(r.cumulativeQuoteVolume ?? 0) / 10 ** (r.quoteDecimals ?? 6),
+        trades: Number(r.tradeCount ?? 0),
+        lastPrice: r.lastPrice ? Number(r.lastPrice) / 10 ** (r.quoteDecimals ?? 6) : null,
+      });
     });
+    return nonEmpty(out, "upstream") as Promise<TapWindow[]>;
+  })().catch((e) => {
+    console.warn(`[tapflow] upstream indexer failed (${String(e).slice(0, 80)}) — using chain-discovered windows`);
+    return Promise.reject(e);
   });
-  // The upstream list is often STALE rather than down: after a 5-minute window
-  // expires, its successor can take a minute or more to be listed, and the tap
-  // screen would sit on "loading". Our indexer sees MarketCreated within seconds,
-  // so merge in any window it knows that upstream has not listed yet.
+
+  const out = await Promise.any([upstream, chain]).catch(() => [] as TapWindow[]);
+  console.debug(`[tapflow] ${out.length} live window(s) in ${Date.now() - t0}ms`);
+
+  // Upstream is often STALE rather than down: after a window expires its
+  // successor can take a minute to be listed. Merge anything chain discovery
+  // knows about that is missing, as long as it does not cost real time.
   try {
-    const extra = (await withTimeout(listLiveWindowsFallback(opts), 4_000)).filter((w) => !out.some((o) => o.marketId.toLowerCase() === w.marketId.toLowerCase()));
+    const extra = (await withTimeout(chain, 4_000)).filter((w) => !out.some((o) => o.marketId.toLowerCase() === w.marketId.toLowerCase()));
     if (extra.length) {
       console.debug(`[tapflow] +${extra.length} window(s) from chain discovery that upstream has not listed yet`);
       out.push(...extra);

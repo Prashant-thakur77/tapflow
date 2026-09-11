@@ -46,12 +46,6 @@
 @layer base {
   body {
     background-color: var(--color-bn-bg);
-    background: radial-gradient(
-      circle at 50% 10%,
-      #0f214a 0%,
-      #0b101c 50%,
-      #0b101c 100%
-    );
     min-height: 100vh;
     color: var(--color-bn-text);
     margin: 0;
@@ -379,20 +373,7 @@
 
   /* ── Sci-Fi UI Centure Theme Utilities ── */
 
-  .tf-card {
-    position: relative;
-    background: linear-gradient(
-      150deg,
-      rgba(255, 255, 255, 0.04) 0%,
-      rgba(255, 255, 255, 0.01) 100%
-    );
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 12px;
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
-    overflow: hidden;
-  }
+  /* .tf-card lives at the bottom of this file — one definition, not two. */
 
   /* Sci button with corner brackets */
   .sci-btn {
@@ -516,18 +497,26 @@
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  background:
-    radial-gradient(60% 40% at 20% 0%, rgba(8, 71, 247, 0.22), transparent 60%),
-    radial-gradient(40% 30% at 90% 10%, rgba(46, 189, 133, 0.10), transparent 60%),
-    radial-gradient(50% 40% at 70% 100%, rgba(246, 70, 93, 0.08), transparent 60%);
+  background: radial-gradient(70% 45% at 50% -10%, rgba(8, 71, 247, 0.07), transparent 70%);
 }
 .tf-card {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.02) 100%);
+  background: #0e1422;
   border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 16px;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 20px 40px -30px rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(12px);
+  border-radius: 10px;
 }
+/* A dense panel: same skin, but meant to hold a table or a stat row rather
+   than prose, so it carries its own header rule. */
+.tf-panel { background: #0e1422; border: 1px solid rgba(255, 255, 255, 0.07); border-radius: 10px; overflow: hidden; }
+.tf-panel-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 7px 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: #8b94a7;
+}
+/* The stats strip every trading screen has: label over value, thin rules between. */
+.tf-stats { display: grid; gap: 1px; background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.07); border-radius: 10px; overflow: hidden; }
+.tf-stat { background: #0e1422; padding: 8px 12px; min-width: 0; }
+.tf-stat > .k { font-size: 9.5px; letter-spacing: 0.18em; text-transform: uppercase; color: #8b94a7; white-space: nowrap; }
+.tf-stat > .v { font-family: var(--font-mono); font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tf-seg {
   display: inline-flex;
   padding: 3px;

@@ -1,8 +1,9 @@
+import { EmptyState } from "./EmptyState";
 import React, { useState } from "react";
 import { useAccount } from "wagmi";
 import { useQueries } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { ExternalLink, Gift } from "lucide-react";
+import { ExternalLink, Gift, Wallet } from "lucide-react";
 import { claim, fmtCadence, fmtProb, fmtUsdc, getClient, getExchange, short, txUrl, windowPosition, type TapWindow } from "./lib/ec";
 import { useBalances, useClaimable, useLiveWindows, useRefreshAfterTx } from "./tap/hooks";
 import { useTapStore } from "./store";
@@ -51,7 +52,15 @@ export const PortfolioView: React.FC = () => {
   };
 
   if (!isConnected) {
-    return <div className="flex-1 flex items-center justify-center text-bn-text-dim text-sm">Connect a wallet to see positions.</div>;
+    return (
+      <EmptyState
+        icon={<Wallet size={26} />}
+        title="No wallet connected"
+        body="Positions, your copy vault and claimable winnings all live against an address. Connect one, or look around first — every page reads live from Somnia Shannon without a wallet."
+        connect
+        action={{ to: "/markets", label: "Browse markets" }}
+      />
+    );
   }
 
   return (

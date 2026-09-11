@@ -9,6 +9,7 @@ import {
   ASSETS,
   cadences,
   fmtCadence,
+  fmtMultiple,
   fmtProb,
   fmtUsdc,
   getExchange,
@@ -40,6 +41,9 @@ import type { TapWindow } from "../lib/ec";
 import { HowItWorksModal } from "../HowItWorksModal";
 
 const fmtPx = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// In a stats cell the cents are noise and they cost the digits that matter:
+// "$77,714.20" clipped to "$77,714.…". Above a thousand, drop them.
+const fmtPxTight = (n: number) => (n >= 1000 ? `$${Math.round(n).toLocaleString()}` : `$${fmtPx(n)}`);
 
 function errText(e: unknown): string {
   const m = (e as { shortMessage?: string; message?: string })?.shortMessage ?? (e as Error)?.message ?? String(e);
@@ -210,6 +214,37 @@ export const TapView: React.FC = () => {
             </div>
           </div>
 
+          {/* The window at a glance. Six facts, thin rules between them — the
+              strip a trader expects above the chart. */}
+          <div className="tf-stats grid-cols-3 xl:grid-cols-6">
+            <div className="tf-stat">
+              <div className="k">open</div>
+              <div className="v text-bn-text-dim">{openPx ? fmtPxTight(openPx) : "—"}</div>
+            </div>
+            <div className="tf-stat">
+              <div className="k">vs open</div>
+              <div className={`v ${move === null ? "text-bn-text-dim" : move >= 0 ? "text-up" : "text-down"}`}>
+                {move === null ? "—" : `${move >= 0 ? "+" : "−"}${(Math.abs(move) * 100).toFixed(3)}%`}
+              </div>
+            </div>
+            <div className="tf-stat">
+              <div className="k">closes</div>
+              <div className="v text-bn-text-dim">{w ? new Date(w.expiry * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}</div>
+            </div>
+            <div className="tf-stat">
+              <div className="k">up</div>
+              <div className="v text-up">{quotes.up?.impliedProb ? `${Math.round(quotes.up.impliedProb * 100)}%` : "—"}</div>
+            </div>
+            <div className="tf-stat">
+              <div className="k">down</div>
+              <div className="v text-down">{quotes.down?.impliedProb ? `${Math.round(quotes.down.impliedProb * 100)}%` : "—"}</div>
+            </div>
+            <div className="tf-stat">
+              <div className="k">payout</div>
+              <div className="v">{quotes.up ? `${fmtMultiple(quotes.up.impliedProb)}` : "—"}</div>
+            </div>
+          </div>
+
           <div className="tf-card p-4 sm:p-5">
             <div className="flex items-center gap-4 sm:gap-6">
               <WindowRing
@@ -230,14 +265,10 @@ export const TapView: React.FC = () => {
               />
               <div className="flex-1 min-w-0">
                 <div className="text-[10px] uppercase tracking-[0.25em] text-bn-text-muted">{asset} now</div>
-                <div className="font-mono font-extrabold text-3xl sm:text-4xl tabular leading-none mt-1 truncate" style={{ color: tone === "up" ? "#2ebd85" : tone === "down" ? "#f6465d" : "#fff" }}>
+                <div className="font-mono font-extrabold text-2xl sm:text-4xl tabular leading-none mt-1 truncate" style={{ color: tone === "up" ? "#2ebd85" : tone === "down" ? "#f6465d" : "#fff" }}>
                   {spotPx ? <TickNumber value={spotPx} format={(n) => `$${fmtPx(n)}`} /> : <span className="tf-skeleton inline-block w-40 h-8 align-middle" />}
                 </div>
                 <div className="mt-3 flex items-center gap-4">
-                  <div>
-                    <div className="text-[9px] uppercase tracking-[0.2em] text-bn-text-muted">open</div>
-                    <div className="font-mono text-sm sm:text-base font-bold text-bn-text-dim tabular">{openPx ? `$${fmtPx(openPx)}` : <span className="tf-skeleton inline-block w-20 h-4 align-middle" />}</div>
-                  </div>
                   {move !== null ? (
                     <div>
                       <div className="text-[9px] uppercase tracking-[0.2em] text-bn-text-muted">vs open</div>
@@ -267,10 +298,6 @@ export const TapView: React.FC = () => {
 
           <SettledStrip asset={asset} intervalSec={w?.intervalSec ?? intervalSec} />
 
-          <div className="hidden xl:flex xl:flex-col gap-3">
-            <TopPositions w={w} me={address} />
-            <LiveTape w={w} me={address} />
-          </div>
         </div>
 
         {/* ── right column: the decision ── */}
@@ -383,7 +410,7 @@ export const TapView: React.FC = () => {
 
           {w ? <ProDrawer w={w} book={quotes.book} grid={quotes.grid} quote={quotes.up ?? quotes.down} side={quotes.up ? "UP" : "DOWN"} stake={stake} /> : null}
 
-          <div className="xl:hidden flex flex-col gap-3">
+          <div className="flex flex-col gap-3">
             <TopPositions w={w} me={address} />
             <LiveTape w={w} me={address} />
           </div>

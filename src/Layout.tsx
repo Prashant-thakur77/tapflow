@@ -23,8 +23,14 @@ export const Layout: React.FC = () => {
       <main
         className={`flex-1 flex flex-col h-full relative z-10 transition-all duration-300 overflow-auto ${isIntro ? "" : "xl:pl-[220px] 2xl:pl-64 pb-[60px] xl:pb-0"}`}
       >
-        {!isIntro && <Header />}
-        {!isIntro && <LiveTicker />}
+        {/* Header and tape are one block of chrome: opaque, and sticky together,
+            so the tape no longer scrolls underneath a translucent header. */}
+        {!isIntro && (
+          <div className="sticky top-0 z-40" style={{ background: "#0a0e18", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+            <Header />
+            <LiveTicker />
+          </div>
+        )}
         <Outlet />
       </main>
     </div>

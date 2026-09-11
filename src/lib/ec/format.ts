@@ -32,6 +32,14 @@ export const fmtMultiple = (avgPrice: number) =>
 
 export function fmtCountdown(sec: number): string {
   const s = Math.max(0, Math.floor(sec));
+  // Past an hour, minutes-and-seconds stops reading as a duration: a 24h window
+  // showed "648:43". Hours get their own field, and the seconds are dropped
+  // because nobody reads them at that range.
+  if (s >= 3600) {
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    return h >= 24 ? `${Math.floor(h / 24)}d ${h % 24}h` : `${h}h ${m.toString().padStart(2, "0")}m`;
+  }
   const m = Math.floor(s / 60);
   const r = s % 60;
   return m > 0 ? `${m}:${r.toString().padStart(2, "0")}` : `${r}s`;

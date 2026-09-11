@@ -1,7 +1,8 @@
+import { EmptyState } from "./EmptyState";
 import React from "react";
 import { useAccount } from "wagmi";
 import { useQuery } from "@tanstack/react-query";
-import { ExternalLink, Loader2 } from "lucide-react";
+import { ExternalLink, History, Loader2 } from "lucide-react";
 import { ONE, fmtCadence, fmtProb, fmtUsdc, getClient, short, txUrl } from "./lib/ec";
 import { getLeader } from "./lib/api";
 
@@ -28,7 +29,16 @@ export const HistoryView: React.FC = () => {
     retry: 0,
   });
 
-  if (!isConnected) return <div className="flex-1 flex items-center justify-center text-bn-text-dim text-sm">Connect a wallet to see your fills.</div>;
+  if (!isConnected)
+    return (
+      <EmptyState
+        icon={<History size={26} />}
+        title="No wallet connected"
+        body="Your fills are read from the chain against your address, so there is nothing to show until one is connected. The venue-wide tape on the leaderboard needs no wallet at all."
+        connect
+        action={{ to: "/leaders", label: "See the leaderboard" }}
+      />
+    );
 
   const me = address!.toLowerCase();
   const rows = (data ?? []).map((f) => {
