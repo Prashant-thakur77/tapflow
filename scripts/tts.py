@@ -11,6 +11,10 @@ walkthrough better than the default.
 import json, os, re, sys, subprocess, time
 
 out = sys.argv[1] if len(sys.argv) > 1 else "video/tts"
+# Any further arguments name the scenes to (re)generate; without them, all of
+# them. Regenerating one scene leaves every other clip — and so every other
+# scene's timing in the cut — exactly as it was.
+only = set(sys.argv[2:])
 os.makedirs(out, exist_ok=True)
 
 # Pull LINES out of the ES module with node, so there is one source of truth.
@@ -25,6 +29,8 @@ from chatterbox.tts import ChatterboxTTS
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"device: {device}")
 model = ChatterboxTTS.from_pretrained(device=device)
+if only:
+    print(f"regenerating only: {', '.join(sorted(only))}")
 
 def clean(t: str) -> str:
     # Spoken forms for things the TTS would otherwise spell or stumble on.
@@ -35,8 +41,13 @@ def clean(t: str) -> str:
     return t
 
 durations = {}
+prev_path = os.path.join(out, "durations.json")
+if only and os.path.exists(prev_path):
+    durations.update(json.load(open(prev_path)))
 t0 = time.time()
 for scene, lines in LINES.items():
+    if only and scene not in only:
+        continue
     durations[scene] = []
     for i, line in enumerate(lines):
         path = os.path.join(out, f"{scene}-{i}.wav")

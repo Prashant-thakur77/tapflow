@@ -97,9 +97,9 @@ Needs the leader key in `.env`, and TapBot paused so the two never race on a non
 
 ## Telegram
 
-> The same flow lives in Telegram. The bot reads the live book, shows the leaderboard, and opens the app as a mini-app, so a follower never needs a browser.
+> The same flow lives in Telegram. The bot reads the live book, and one command places a real order from the chat, with the fill and the transaction in the reply. The app opens as a mini-app, so a follower never needs a browser.
 
-*(telegram, 8 s — not in the current cut. Drop a phone clip at `docs/media/telegram.mp4`
+*(telegram, 12 s — not in the current cut. Drop a phone clip at `docs/media/telegram.mp4`
 and re-run `node scripts/cut-demo.mjs`; see [TELEGRAM-CLIP.md](TELEGRAM-CLIP.md) for the shot list.)*
 
 ## Close — 3:09

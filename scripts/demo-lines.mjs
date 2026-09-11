@@ -40,7 +40,7 @@ export const LINES = {
     "Here is the mirror on the Shannon explorer. Status success, method onEvent, sent from the CopyHandler contract. No externally owned account signed this. That is Somnia reactivity placing a follower's trade in the leader's block.",
   ],
   telegram: [
-    "The same flow lives in Telegram. The bot reads the live book, shows the leaderboard, and opens the app as a mini-app, so a follower never needs a browser.",
+    "The same flow lives in Telegram. The bot reads the live book, and one command places a real order from the chat, with the fill and the transaction in the reply. The app opens as a mini-app, so a follower never needs a browser.",
   ],
   close: [
     "Followers redeem mirrored winnings through the vault. Every number you saw is read live from Somnia Shannon, and every transaction is real.",
