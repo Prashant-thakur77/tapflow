@@ -11,7 +11,7 @@
 **Links**
 - GitHub: https://github.com/Prashant-thakur77/tapflow (public)
 - Live app: https://tapflow-phi.vercel.app
-- Demo video: `<upload link>`
+- Demo video: https://youtu.be/xzKF1KN3L9E (3 min 44 s, narrated; unlisted)
 - Same-block proof on the explorer: https://shannon-explorer.somnia.network/block/482322170
 
 **Description (one paragraph)**
