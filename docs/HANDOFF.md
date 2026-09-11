@@ -72,6 +72,33 @@ Two things that cost a take:
   scene**. That is why one markets shot ran 52 s; the cut's silence cap now
   trims it, but the take is still slow.
 
+## Wallets in Telegram (11 Sep)
+
+Telegram's mini-app webview injects no EIP-1193 provider, so MetaMask cannot
+reach it. Both fixes are in:
+
+- **The bot taps.** `BOT_PRIVATE_KEY` is set in `tg-bot/.env` (chmod 600,
+  gitignored) to a wallet created for this: `0x07e67564573dbFa5F99869230c210707417362E9`,
+  funded with 2.5 STT from the leader wallet and 500 tUSDC from the token's
+  public `faucet(uint256)`. `/up` and `/down` now place real IOC orders, capped
+  at `MAX_STAKE` (25 tUSDC). Verified with a real tap: 2.04 shares at 48 per
+  cent, tx `0x614290dfd6a7fd7d304b92df1aadbff57860428035cc3c76d5a5ca9bf70c19de`.
+  It is a shared demo wallet and `/start` says so. It is deliberately **not**
+  the leader key, which TapBot signs with — the two would race on the nonce.
+- **WalletConnect.** `src/components/Provider.tsx` adds the connector whenever
+  `VITE_WALLETCONNECT_PROJECT_ID` is set at build time, and `pickConnector()` in
+  `src/lib/wallet.ts` chooses injected when the browser has one and
+  WalletConnect otherwise. **Still needs the id** (free, cloud.reown.com), then:
+
+  ```bash
+  cd /home/prashant/tapflow
+  VITE_TAPFLOW_API=https://tapflow-indexer.onrender.com \
+  VITE_WALLETCONNECT_PROJECT_ID=<id> vercel build --prod --yes
+  vercel deploy --prebuilt --prod --yes
+  ```
+
+  Unset, the app behaves exactly as it did before.
+
 ## Laptop services (restart after any reboot)
 
 ```bash
