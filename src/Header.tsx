@@ -5,7 +5,7 @@ import { ChevronDown, Droplets, ExternalLink, Flame, LogOut } from "lucide-react
 import { statsOf, useTapStore } from "./store";
 import { CHAIN_ID, addressUrl, fmtUsdc, getExchange, short, txUrl } from "./lib/ec";
 import { useBalances, useRefreshAfterTx, useSpot } from "./tap/hooks";
-import { hasInjectedWallet, WALLET_HELP } from "./lib/wallet";
+import { canConnectWallet, pickConnector, WALLET_HELP } from "./lib/wallet";
 
 const fmtPx = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -87,7 +87,11 @@ export const Header: React.FC = () => {
         ) : null}
         {!isConnected ? (
           <button
-            onClick={() => (hasInjectedWallet() ? connect({ connector: connectors[0] }) : toast(WALLET_HELP, { duration: 10000, icon: "🦊" }))}
+            onClick={() => {
+              const c = canConnectWallet() ? pickConnector(connectors) : null;
+              if (c) connect({ connector: c });
+              else toast(WALLET_HELP, { duration: 10000, icon: "🦊" });
+            }}
             className="px-3 py-1.5 font-bold rounded bg-[#0847F7] text-white active:scale-95 transition-transform text-xs whitespace-nowrap"
           >
             CONNECT

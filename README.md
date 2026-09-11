@@ -36,7 +36,7 @@ Prediction markets are solo and clunky: connect, approve, read an order book, si
 | **F3** | Copy-trading contracts (reactivity) | ✅ **deployed + proven on Shannon (v3)** | same-block mirrors in [block 482312219](https://shannon-explorer.somnia.network/block/482312219) (v1) … [block 482798136](https://shannon-explorer.somnia.network/block/482798136) (v4); subscription `16910004`; followers redeem mirrored winnings; `forge test` 19/19 |
 | **F4** | Fills indexer + leaderboard API | ✅ live | 47 wallets / 177 taps / 3.6k tUSDC indexed from chain |
 | **F5** | TapBot momentum agent | ✅ **live as a public leader** | 50+ real taps overnight, 25 on-chain copies, a 30W/22L settled record on the board, and its winnings auto-claimed in three `redeemMany` sweeps. v2 runs a risk gate with reason codes (max 90¢/share, edge over the book's spread, one tap per window, cooldown, near-expiry stop), trades the shortest live cadence, auto-claims winnings each loop, and publishes its holds to the feed so followers see *why* it waited |
-| **F6** | Telegram bot + mini-app | ✅ **live** | [@TapFlowSomniaBot](https://t.me/TapFlowSomniaBot) — `/window` reads the live book and falls back to the soonest live window, `/board` is the chain-built leaderboard, `/follow` registers a leader, and the menu button opens the mini-app |
+| **F6** | Telegram bot + mini-app | ✅ **live** | [@TapFlowSomniaBot](https://t.me/TapFlowSomniaBot) — `/window` reads the live book and falls back to the soonest live window, `/up`/`/down` place real orders, `/board` is the chain-built leaderboard, `/follow` registers a leader, and the menu button opens the mini-app. [Wallets in Telegram](#wallets-in-telegram) below |
 | **F7** | README + SDK feedback | ✅ this file + `SDK-FEEDBACK.md` | 20 measured items |
 | **+** | Markets grid, live venue ticker, settled strip, pro drawer | ✅ live | [/markets](https://tapflow-phi.vercel.app/markets) — every window as a card with odds, countdown and payout-on-chip quick taps |
 | **+** | Proof page + leader profiles + agent strip | ✅ live | [/proof](https://tapflow-phi.vercel.app/proof) — the indexer pairs every reactive mirror with its broadcast (8/8 same block); `/leader/:address` |
@@ -198,6 +198,26 @@ To host the indexer instead of tunnelling it, see [`docs/HOSTING.md`](docs/HOSTI
 - **Pending:** nothing on the build side. The follower's 1.30 winning shares from before the v3 upgrade are stranded in the v2 vault (no redeem there).
 - **Researched, not shipped:** non-custodial operator session keys (`src/lib/ec/operator.ts`).
 - **Not in scope:** mainnet, cross-chain, a hosted multi-tenant relayer.
+
+### Wallets in Telegram
+
+Telegram's mini-app webview injects no EIP-1193 provider, so a MetaMask
+extension cannot reach it and the Connect button has nothing to talk to. There
+are three ways in, and TapFlow ships all three.
+
+- **Tap without a wallet at all.** `/up 5` and `/down 5` place a real
+  immediate-or-cancel order on the live book from a wallet the bot owns
+  ([`BOT_PRIVATE_KEY`](tg-bot/.env.example)), capped at `MAX_STAKE` tUSDC a tap.
+  It is a shared demo wallet and the bot says so: the shares belong to it, not
+  to whoever typed the command. That is the fastest way to see a real Shannon
+  transaction from a phone, with nothing to install.
+- **WalletConnect, to sign with your own MetaMask.** Set
+  `VITE_WALLETCONNECT_PROJECT_ID` (free from cloud.reown.com) at build time and
+  the mini-app's Connect button deep-links into MetaMask on the same phone.
+  Without the id the app falls back to injected-only and still reads the chain.
+- **MetaMask's own browser.** Paste the app URL into the browser inside
+  MetaMask mobile. That page has a real injected provider, so connect, tap,
+  follow and claim all work with no extra setup.
 
 ## After the hackathon
 

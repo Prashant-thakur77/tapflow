@@ -78,6 +78,10 @@ export async function handleStart(ctx: Context): Promise<void> {
     "/follow &lt;address&gt; — mirror a leader's taps",
     "/board — top tappers",
     "/wallet &lt;address&gt; — save your wallet for /follow",
+    "",
+    canTrade()
+      ? `<b>About the wallet.</b> /up and /down spend a <b>shared demo wallet</b> the bot owns, capped at ${config.maxStake} tUSDC a tap, so you can try a real on-chain trade without funding anything. The shares it buys belong to that wallet, not to you. To tap with <b>your own</b> MetaMask, open the mini-app above — inside Telegram, press ⚡ Open TapFlow, or paste the link into MetaMask's own browser.`
+      : "<b>About the wallet.</b> The bot holds no key, so it only reads the chain. Tap with your own wallet in the mini-app above.",
   ].join("\n");
   await ctx.reply(text, { ...HTML, reply_markup: mainKeyboard() });
 }

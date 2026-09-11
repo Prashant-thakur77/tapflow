@@ -4,7 +4,7 @@ import toast from "react-hot-toast";
 import confetti from "canvas-confetti";
 import { CHAIN_ID, fmtCadence, fmtProb, fmtUsdc, getExchange, placeTap, txUrl, type Side, type TapQuote, type TapResult, type TapWindow } from "../lib/ec";
 import { useTapStore } from "../store";
-import { hasInjectedWallet, WALLET_HELP } from "../lib/wallet";
+import { canConnectWallet, pickConnector, WALLET_HELP } from "../lib/wallet";
 import { useRefreshAfterTx } from "./hooks";
 
 export function errText(e: unknown): string {
@@ -29,11 +29,12 @@ export function useTap() {
 
   const tap = async (w: TapWindow, side: Side, stake: number, q: TapQuote | null): Promise<TapResult | null> => {
     if (!isConnected || !address) {
-      if (!hasInjectedWallet()) {
+      const c = canConnectWallet() ? pickConnector(connectors) : null;
+      if (!c) {
         toast(WALLET_HELP, { duration: 10000, icon: "🦊" });
         return null;
       }
-      connect({ connector: connectors[0] });
+      connect({ connector: c });
       return null;
     }
     if (chainId !== CHAIN_ID) {
