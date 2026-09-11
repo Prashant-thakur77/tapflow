@@ -1,15 +1,18 @@
 # Demo script
 
-Final cut: **4:09**, 1280×800, narrated, [`docs/media/tapflow-demo.mp4`](media/tapflow-demo.mp4).
+Final cut: **3:44**, 1280×800, narrated, [`docs/media/tapflow-demo.mp4`](media/tapflow-demo.mp4).
 The mirror placed on camera is [block 485621955](https://shannon-explorer.somnia.network/block/485621955).
 A picture-only cut of the recorded take is at [`tapflow-demo-silent.mp4`](media/tapflow-demo-silent.mp4);
-it is the screen recording alone, so it does not include the phone clip.
+it is the screen recording alone, without the cards or the phone clip.
 
 The take is filmed with a **real wallet connected in the browser**: the recorder
 hands the page an EIP-1193 provider and signs in node
-([`scripts/record-demo.mjs`](../scripts/record-demo.mjs)), so the header carries
-a real address and balance, the session wallet is funded by two real
-transactions, and the tap on camera is a real fill.
+([`scripts/record-demo.mjs`](../scripts/record-demo.mjs)), so the header carries a
+real address and balance, the session wallet is funded by two real transactions,
+and the tap on camera is a real fill.
+
+It opens on a title card and ends on a card of links, both drawn by the cut from
+the facts in this repo rather than recorded.
 
 Everything is recorded by Playwright against the running app and the **live**
 chain: every number on screen is real, and the proof scene places a real leader
@@ -113,6 +116,12 @@ Needs the leader key in `.env`, and TapBot paused so the two never race on a non
 > The leaderboard is the same one, built from chain. And the app opens as a mini-app inside Telegram, so someone can take their first real position without a browser and without a wallet.
 
 *(telegram, 26 s)*
+
+## outro
+
+> The code, the contracts, and the SDK feedback report are in the repo. The app is live, and so is the bot.
+
+*(outro, 7 s)*
 
 ## Close
 

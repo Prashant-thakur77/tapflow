@@ -193,9 +193,13 @@ if (!fs.existsSync(durPath)) {
 
 // ── narration: one segment per spoken line ────────────────────────────────
 const D = JSON.parse(fs.readFileSync(durPath, "utf8"));
-const LEAD = 0.15;   // a beat before the voice starts
-const TAIL = 0.35;   // and after it ends
-const SLACK = 2.5;   // the most silence a shot may hold after its line ends
+// Pacing. These four numbers decide how much of the film is dead air: the old
+// values left ~2.8s of silence after every single line, which added up to 50s
+// of a 249s cut — a fifth of it, and it felt like waiting rather than watching.
+// A breath between lines, not a pause.
+const LEAD = 0.10;   // a beat before the voice starts
+const TAIL = 0.25;   // and after it ends
+const SLACK = 0.35;  // the most silence a shot may hold after its line ends
 const segs = [];
 const firstStart = named.length ? map(named[0].start) : 0;
 if (firstStart > 0.3) segs.push({ kind: "pic", a: 0, b: firstStart });
@@ -249,6 +253,19 @@ if (fs.existsSync(TELEGRAM) && LINES.telegram?.length) {
   console.log(`no ${TELEGRAM} — skipping the Telegram scene`);
 }
 
+// ── the two cards ──────────────────────────────────────────────────────────
+// A title to open on and a card of links to end on. Drawn here rather than
+// recorded, so they carry the same type as the captions and can be rebuilt
+// from the facts in this repo.
+const FONT_B = path.join(FONTS, "Manrope-Bold.ttf");
+const FONT_S = path.join(FONTS, "Manrope-SemiBold.ttf");
+const esc = (t) => t.replace(/\\/g, "\\\\").replace(/:/g, "\\:").replace(/'/g, "\u2019").replace(/%/g, "\\%");
+const line = (text, size, y, color, font = FONT_S) =>
+  `drawtext=fontfile='${font}':text='${esc(text)}':fontsize=${size}:fontcolor=${color}:x=(w-tw)/2:y=${y}`;
+const card = (dur, draws, dest) =>
+  ff(["-f", "lavfi", "-i", `color=c=#0a0e18:s=${W}x${H}:r=25:d=${dur.toFixed(2)}`, "-f", "lavfi", "-i", "anullsrc=r=48000:cl=mono",
+      "-vf", draws.join(","), "-map", "0:v", "-map", "1:a", "-t", dur.toFixed(2), ...SEG_ENC, dest]);
+
 // build each segment as its own file, so every one can stretch on its own
 const segDir = path.join(dir, "seg");
 fs.rmSync(segDir, { recursive: true, force: true });
@@ -298,6 +315,44 @@ segs.forEach((s, i) => {
   console.log(`  ${s.scene}-${s.k}: picture ${picture.toFixed(1)}s, voice ${spoken.toFixed(1)}s → ${dur.toFixed(1)}s`);
 });
 console.log(`voiced length ${at.toFixed(1)}s over ${segs.length} segments`);
+
+// title card first, links card last — numbered so the concat list keeps order
+card(2.2, [
+  line("TapFlow", 74, "h/2-96", "white", FONT_B),
+  line("one tap on a live DreamDEX Event Contract", 27, "h/2+4", "#aab4c8"),
+  line("and the chain copies you in the same block", 27, "h/2+44", "#aab4c8"),
+  line("SOMNIA SHANNON  ·  EVERY NUMBER READ FROM CHAIN", 17, "h/2+120", "#5d6a80"),
+], path.join(segDir, "000-title.mp4"));
+
+const outroWav = path.join(ttsDir, "outro-0.wav");
+if (fs.existsSync(outroWav)) {
+  const d = (D.outro ?? [6])[0] + LEAD + TAIL;
+  const dest = path.join(segDir, "zzz-outro.mp4");
+  ff(["-f", "lavfi", "-i", `color=c=#0a0e18:s=${W}x${H}:r=25:d=${d.toFixed(2)}`, "-i", outroWav,
+    "-filter_complex",
+    `[0:v]${[
+      line("TapFlow", 52, "h/2-190", "white", FONT_B),
+      line("github.com/Prashant-thakur77/tapflow", 30, "h/2-90", "#8aa6f9"),
+      line("tapflow-phi.vercel.app", 30, "h/2-40", "#8aa6f9"),
+      line("@TapFlowSomniaBot", 30, "h/2+10", "#8aa6f9"),
+      line(`same-block mirror proven in block ${proof.block ?? ""}`, 20, "h/2+100", "#5d6a80"),
+      line("Somnia x DreamDEX Event Contracts", 20, "h/2+140", "#5d6a80"),
+    ].join(",")}[v];[1:a]${AFMT},adelay=${Math.round(LEAD * 1000)},apad,asetpts=PTS-STARTPTS[a]`,
+    "-map", "[v]", "-map", "[a]", "-t", d.toFixed(2), ...SEG_ENC, dest]);
+  const at0 = at;
+  for (const b of chunk(LINES.outro[0])) {
+    const w = ((D.outro ?? [6])[0] * b.length) / (LINES.outro[0].length || 1);
+    cues.push({ start: at + LEAD, end: at + LEAD + w - 0.08, text: b });
+    at += w;
+  }
+  at = at0 + d;
+  console.log(`  outro card: ${d.toFixed(1)}s`);
+}
+// The title card sits in front of everything, so every caption moves with it.
+const TITLE = 2.2;
+for (const c of cues) { c.start += TITLE; c.end += TITLE; }
+at += TITLE;
+console.log(`with cards: ${at.toFixed(1)}s`);
 
 const list = path.join(segDir, "list.txt");
 fs.writeFileSync(list, fs.readdirSync(segDir).filter((f) => f.endsWith(".mp4")).sort().map((f) => `file '${f}'`).join("\n"));

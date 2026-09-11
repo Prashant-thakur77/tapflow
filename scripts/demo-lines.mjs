@@ -45,6 +45,11 @@ export const LINES = {
     "The reply carries the fill: the shares, the price paid, what it pays if the window closes your way, and the transaction on the Shannon explorer.",
     "The leaderboard is the same one, built from chain. And the app opens as a mini-app inside Telegram, so someone can take their first real position without a browser and without a wallet.",
   ],
+  // Read over the end card, so the links are on screen while they are spoken
+  // rather than hanging in silence.
+  outro: [
+    "The code, the contracts, and the SDK feedback report are in the repo. The app is live, and so is the bot.",
+  ],
   close: [
     "Followers redeem mirrored winnings through the vault. Every number you saw is read live from Somnia Shannon, and every transaction is real.",
     "The code, the contracts, and a twenty-item feedback report on the DreamDEX SDK are in the repo. TapFlow: tap once, and the chain copies you in the same block.",
