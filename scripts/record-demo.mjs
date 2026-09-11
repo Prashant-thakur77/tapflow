@@ -11,10 +11,13 @@
 //
 // Needs: a funded PRIVATE_KEY in .env (the leader), Chromium for Playwright.
 
+import "dotenv/config";
 import { chromium } from "playwright-core";
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { createWalletClient, createPublicClient, defineChain, http } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 
 const outDir = process.argv[2] ?? "./video";
 fs.mkdirSync(outDir, { recursive: true });
@@ -34,16 +37,41 @@ async function headBlock() {
 // can lag on a slow host without affecting it.
 for (let i = 0; i < 40; i++) {
   try {
-    const [newest] = await (await fetch(`${API}/api/mirrors?limit=1`, { signal: AbortSignal.timeout(40000) })).json();
+    // Ask where the scanner is, not when it last saw a mirror: on a quiet
+    // chain the newest mirror can be hours old while the scanner sits at the
+    // head, and comparing those two made this wait ten minutes for nothing.
+    const h = await (await fetch(`${API}/api/health`, { signal: AbortSignal.timeout(40000) })).json();
     const head = await headBlock();
-    const behind = head - Number(newest?.block ?? 0);
-    console.log(`preflight: newest indexed mirror is ${behind} blocks behind head`);
+    const behind = head - Number(h?.lastBlock ?? 0);
+    console.log(`preflight: indexer is ${behind} blocks behind head`);
     if (behind < 60_000) break;
   } catch (e) {
     console.log(`preflight: indexer not answering yet (${String(e).slice(0, 60)})`);
   }
   await new Promise((r) => setTimeout(r, 15000));
 }
+
+// ── a real wallet in the recording browser ────────────────────────────────
+// Playwright cannot drive a MetaMask popup, but the app only needs an EIP-1193
+// provider. This one answers reads straight from the Shannon RPC and hands
+// writes back to node, where viem signs them with DEMO_WALLET_KEY. So every
+// transaction in the take is a real signed transaction from a real wallet —
+// the page just never sees the key. Unset the env var and the take is filmed
+// disconnected, exactly as before.
+const CHAIN_ID = 50312;
+const somniaShannon = defineChain({
+  id: CHAIN_ID,
+  name: "Somnia Shannon",
+  nativeCurrency: { name: "Somnia Test Token", symbol: "STT", decimals: 18 },
+  rpcUrls: { default: { http: [RPC] } },
+  blockExplorers: { default: { name: "Shannon Explorer", url: EXPLORER } },
+  testnet: true,
+});
+const WALLET_KEY = process.env.DEMO_WALLET_KEY ?? process.env.PRIVATE_KEY;
+const wallet = WALLET_KEY ? privateKeyToAccount(WALLET_KEY) : null;
+const walletClient = wallet ? createWalletClient({ account: wallet, chain: somniaShannon, transport: http(RPC) }) : null;
+const publicClient = createPublicClient({ chain: somniaShannon, transport: http(RPC) });
+if (wallet) console.log(`wallet in the browser: ${wallet.address}`);
 
 const browser = await chromium.launch({ executablePath: CHROME, headless: true, args: ["--no-sandbox", "--disable-gpu"] });
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, recordVideo: { dir: outDir, size: { width: 1280, height: 800 } } });
@@ -52,6 +80,86 @@ await ctx.addInitScript(() => {
     if (!localStorage.getItem("tapflow")) localStorage.setItem("tapflow", JSON.stringify({ state: { seenHowItWorks: true, asset: "BTC", intervalSec: 300, stake: 5, taps: [] }, version: 2 }));
   } catch {}
 });
+// Hand the page a wallet before any script on it runs.
+if (wallet) {
+  // One at a time, and mined before the next is signed. A real wallet serialises
+  // because a person confirms one popup at a time; sending two straight through
+  // gave both the same pending nonce and the second was dropped, which is why
+  // funding a session stopped halfway.
+  let queue = Promise.resolve();
+  await ctx.exposeFunction("__tfSend", async (tx) => {
+    const run = queue.then(async () => {
+      const hash = await walletClient.sendTransaction({
+        to: tx.to ?? undefined,
+        data: tx.data ?? undefined,
+        value: tx.value ? BigInt(tx.value) : undefined,
+        gas: tx.gas ? BigInt(tx.gas) : undefined,
+      });
+      await publicClient.waitForTransactionReceipt({ hash, timeout: 60_000 }).catch(() => {});
+      console.log(`  wallet → ${hash}`);
+      return hash;
+    });
+    queue = run.then(() => {}, () => {});
+    return run;
+  });
+  await ctx.exposeFunction("__tfSign", async (kind, a, b) => {
+    if (kind === "personal_sign") return walletClient.signMessage({ message: { raw: a } });
+    return walletClient.signTypedData(typeof b === "string" ? JSON.parse(b) : b);
+  });
+  await ctx.addInitScript(
+    ({ address, chainIdHex, rpc }) => {
+      const listeners = {};
+      const provider = {
+        isMetaMask: true,
+        chainId: chainIdHex,
+        selectedAddress: address,
+        async request({ method, params }) {
+          switch (method) {
+            case "eth_accounts":
+            case "eth_requestAccounts":
+              return [address];
+            case "eth_chainId":
+              return chainIdHex;
+            case "net_version":
+              return String(parseInt(chainIdHex, 16));
+            case "wallet_switchEthereumChain":
+            case "wallet_addEthereumChain":
+              return null;
+            case "wallet_requestPermissions":
+            case "wallet_getPermissions":
+              return [{ parentCapability: "eth_accounts" }];
+            case "eth_sendTransaction":
+              return window.__tfSend(params[0]);
+            case "personal_sign":
+              return window.__tfSign("personal_sign", params[0]);
+            case "eth_signTypedData_v4":
+              return window.__tfSign("typed", params[0], params[1]);
+            default: {
+              const r = await fetch(rpc, {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ jsonrpc: "2.0", id: Date.now(), method, params: params ?? [] }),
+              });
+              const j = await r.json();
+              if (j.error) throw Object.assign(new Error(j.error.message), { code: j.error.code });
+              return j.result;
+            }
+          }
+        },
+        on(ev, fn) { (listeners[ev] ||= []).push(fn); return provider; },
+        removeListener(ev, fn) { listeners[ev] = (listeners[ev] || []).filter((f) => f !== fn); return provider; },
+      };
+      window.ethereum = provider;
+      // EIP-6963, so a connector that discovers wallets that way finds it too
+      const info = { uuid: "8e2d1f4c-0c1a-4a6f-9f6d-2f3a4b5c6d7e", name: "MetaMask", icon: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4=", rdns: "io.metamask" };
+      const announce = () => window.dispatchEvent(new CustomEvent("eip6963:announceProvider", { detail: Object.freeze({ info, provider }) }));
+      window.addEventListener("eip6963:requestProvider", announce);
+      announce();
+    },
+    { address: wallet.address, chainIdHex: `0x${CHAIN_ID.toString(16)}`, rpc: RPC },
+  );
+}
+
 const page = await ctx.newPage();
 const t0 = Date.now();
 const scenes = [];
@@ -145,22 +253,96 @@ await scroll(620);
 await holdFor("landing", Math.max(4500, need("landing") * 0.45) + 1000, 4500);
 
 // ── 2 · tap screen ───────────────────────────────────────────────────────
+// With a wallet in the browser this scene is the whole user story end to end:
+// connect, fund a capped session wallet, then a real tap that fills on the
+// live book — no popup, because the session key signs it.
 await page.goto(`${APP}/tap`, { waitUntil: "domcontentloaded" });
 await waitText("if right", 75000);
 await scene("tap");
-await hold(Math.max(5000, need("tap") * 0.4));
+// connect first, so the header carries the address and balances all scene
+if (wallet) {
+  await page.getByRole("button", { name: "CONNECT", exact: true }).first().click({ timeout: 15000 }).catch(() => console.log("  (no CONNECT button)"));
+  await page.getByText(wallet.address.slice(2, 6), { exact: false }).first().waitFor({ timeout: 30000 }).catch(() => console.log("  (header never showed the address)"));
+}
+await hold(Math.max(5000, need("tap") * 0.26));
 await scroll(380);
-await hold(Math.max(5000, need("tap") * 0.3));
+await hold(Math.max(4500, need("tap") * 0.18));
 await scroll(-380);
 await hold(800);
-const up = page.getByRole("button", { name: /^UP/ }).first();
-await up.hover().catch(() => {});
-await hold(1300);
-const down = page.getByRole("button", { name: /^DOWN/ }).first();
-await down.hover().catch(() => {});
-await hold(1300);
-await page.getByRole("button", { name: "ETH", exact: true }).first().click().catch(() => {});
-await holdFor("tap", Math.max(5000, need("tap") * 0.4) + 1000 + Math.max(5000, need("tap") * 0.3) + 800 + 2600, 4500);
+
+// the capped session wallet: two signatures here, none afterwards
+let oneTap = false;
+if (wallet) {
+  const enable = page.getByRole("button", { name: /Enable one-tap/i }).first();
+  if (await enable.isVisible().catch(() => false)) {
+    await enable.click().catch(() => {});
+    await hold(2200);
+    await page.getByRole("button", { name: /Fund .* & go/i }).first().click({ timeout: 10000 }).catch(() => console.log("  (no fund button)"));
+    // The live pill is the only place that says "tUSDC left"; matching on
+    // "one-tap" alone also matches the button that opened this modal.
+    oneTap = await page
+      .getByText(/tUSDC left/i)
+      .first()
+      .waitFor({ timeout: 120000 })
+      .then(() => true)
+      .catch(() => false);
+    console.log(`  one-tap session: ${oneTap ? "live" : "did not start"}`);
+    // Whatever happened, get the dialog off the screen — while it is up it
+    // covers the page and swallows the click on UP.
+    await page.keyboard.press("Escape").catch(() => {});
+    await hold(600);
+    const stillOpen = await page.locator("[role=dialog]").first().isVisible().catch(() => false);
+    if (stillOpen) {
+      await page.locator("[role=dialog] button").first().click({ timeout: 4000 }).catch(() => {});
+      await hold(500);
+    }
+    await hold(1800);
+  }
+}
+
+// A real tap, placed through the UI. Both sides are disabled when that side of
+// the book is empty — "no liquidity" — and a 5-minute window thins out near
+// expiry, so take whichever side can actually be filled, and if neither can,
+// move to a longer cadence rather than filming a dead button.
+if (wallet) {
+  const sideButton = async () => {
+    for (const name of [/^UP/, /^DOWN/]) {
+      const b = page.getByRole("button", { name }).first();
+      if (await b.isEnabled().catch(() => false)) return b;
+    }
+    return null;
+  };
+  let btn = await sideButton();
+  for (const cadence of ["15m", "1h"]) {
+    if (btn) break;
+    console.log(`  no side tappable — trying ${cadence}`);
+    await page.getByRole("button", { name: cadence, exact: true }).first().click({ timeout: 8000 }).catch(() => {});
+    await hold(6000);
+    btn = await sideButton();
+  }
+  if (!btn) console.log("  (no tappable side on any cadence)");
+  const up = btn ?? page.getByRole("button", { name: /^UP/ }).first();
+  await up.hover().catch(() => {});
+  await hold(900);
+  await up.click({ timeout: 10000 }).catch(() => console.log("  (side not clickable)"));
+  const filled = await page
+    .getByText(/filled|shares @/i)
+    .first()
+    .waitFor({ timeout: 60000 })
+    .then(() => true)
+    .catch(() => false);
+  console.log(`  UI tap: ${filled ? "filled" : "no fill on camera"}`);
+  await holdFor("tap", Math.max(5000, need("tap") * 0.26) + Math.max(4500, need("tap") * 0.18) + 8000, 6000);
+} else {
+  const up = page.getByRole("button", { name: /^UP/ }).first();
+  await up.hover().catch(() => {});
+  await hold(1300);
+  const down = page.getByRole("button", { name: /^DOWN/ }).first();
+  await down.hover().catch(() => {});
+  await hold(1300);
+  await page.getByRole("button", { name: "ETH", exact: true }).first().click().catch(() => {});
+  await holdFor("tap", Math.max(5000, need("tap") * 0.4) + 1000 + Math.max(5000, need("tap") * 0.3) + 800 + 2600, 4500);
+}
 
 // ── 3 · markets ──────────────────────────────────────────────────────────
 await page.goto(`${APP}/markets`, { waitUntil: "domcontentloaded" });

@@ -13,7 +13,8 @@ export const LINES = {
   tap: [
     "This is the tap screen. One window: the countdown, the price against where it opened, and the crowd's odds. Tap UP or DOWN and your stake becomes a real immediate-or-cancel order on the live on-chain book.",
     "Below, the crowd-odds line from one-minute candles, and who holds what on this window, read straight from the pool's own logs.",
-    "Fund a capped session wallet once, and every tap and every claim signs itself. No wallet popups. On desktop, the arrow keys tap.",
+    "Here is a wallet connecting. Fund a capped session wallet once, two signatures, and from then on every tap and every claim signs itself.",
+    "So a tap is one press. The order goes to the book, fills, and the toast carries the transaction. A real position on Somnia Shannon, with no wallet popup.",
   ],
   markets: [
     "Every live window on the venue as a card, with quick taps. Any Somnia app can embed one of these cards in an iframe.",

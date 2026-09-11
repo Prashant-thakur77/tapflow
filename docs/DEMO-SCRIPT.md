@@ -1,9 +1,15 @@
 # Demo script
 
-Final cut: **3:59**, 1280×800, narrated, [`docs/media/tapflow-demo.mp4`](media/tapflow-demo.mp4).
-The mirror placed on camera is [block 484969998](https://shannon-explorer.somnia.network/block/484969998).
-A picture-only cut of the recorded take is at [`tapflow-demo-silent.mp4`](media/tapflow-demo-silent.mp4),
-for reading the lines live. It is the screen recording alone, so it does not include the phone clip.
+Final cut: **4:09**, 1280×800, narrated, [`docs/media/tapflow-demo.mp4`](media/tapflow-demo.mp4).
+The mirror placed on camera is [block 485621955](https://shannon-explorer.somnia.network/block/485621955).
+A picture-only cut of the recorded take is at [`tapflow-demo-silent.mp4`](media/tapflow-demo-silent.mp4);
+it is the screen recording alone, so it does not include the phone clip.
+
+The take is filmed with a **real wallet connected in the browser**: the recorder
+hands the page an EIP-1193 provider and signs in node
+([`scripts/record-demo.mjs`](../scripts/record-demo.mjs)), so the header carries
+a real address and balance, the session wallet is funded by two real
+transactions, and the tap on camera is a real fill.
 
 Everything is recorded by Playwright against the running app and the **live**
 chain: every number on screen is real, and the proof scene places a real leader
@@ -13,12 +19,6 @@ while the camera rolls.
 The narration below is the source of truth: [`scripts/demo-lines.mjs`](../scripts/demo-lines.mjs)
 feeds the voice ([`scripts/tts.py`](../scripts/tts.py), Chatterbox), the scene
 holds in the recorder, and the burned-in captions.
-
-Captions are set in Manrope, the app's own typeface ([`scripts/fonts`](../scripts/fonts),
-SIL Open Font Licence), one line per cue on a panel dark enough to read over the
-white block explorer and close enough to the app's own background to disappear
-against it. Lines are broken where the sentence breaks, never leaving a word
-stranded on its own.
 
 Rebuild it:
 
@@ -32,7 +32,7 @@ Needs the leader key in `.env`, and TapBot paused so the two never race on a non
 
 ---
 
-## The problem, and the one-line answer — 0:00
+## The problem, and the one-line answer
 
 > Prediction markets have a problem. Every trade is solo: connect a wallet, approve a token, read an order book, sign, wait. And if you want to copy someone who is good, you can't — not on-chain, not in time.
 >
@@ -42,17 +42,19 @@ Needs the leader key in `.env`, and TapBot paused so the two never race on a non
 
 *(landing, 29 s)*
 
-## The tap screen — 0:33
+## The tap screen
 
 > This is the tap screen. One window: the countdown, the price against where it opened, and the crowd's odds. Tap UP or DOWN and your stake becomes a real immediate-or-cancel order on the live on-chain book.
 >
 > Below, the crowd-odds line from one-minute candles, and who holds what on this window, read straight from the pool's own logs.
 >
-> Fund a capped session wallet once, and every tap and every claim signs itself. No wallet popups. On desktop, the arrow keys tap.
+> Here is a wallet connecting. Fund a capped session wallet once, two signatures, and from then on every tap and every claim signs itself.
+>
+> So a tap is one press. The order goes to the book, fills, and the toast carries the transaction. A real position on Somnia Shannon, with no wallet popup.
 
-*(tap, 25 s)*
+*(tap, 35 s)*
 
-## Every window, and why Event Contracts — 1:05
+## Every window, and why Event Contracts
 
 > Every live window on the venue as a card, with quick taps. Any Somnia app can embed one of these cards in an iframe.
 >
@@ -60,7 +62,7 @@ Needs the leader key in `.env`, and TapBot paused so the two never race on a non
 
 *(markets, 21 s)*
 
-## Leaders, and an agent you can follow — 1:31
+## Leaders, and an agent you can follow
 
 > The leaderboard is built from chain, ranked by realized profit on settled windows. TapBot is our agent: a momentum strategy that taps as a public leader you can follow like any human. Dozens of real taps, a settled record, and every copy it triggered is on-chain.
 >
@@ -68,7 +70,7 @@ Needs the leader key in `.env`, and TapBot paused so the two never race on a non
 
 *(leaders, 24 s)*
 
-## Somnia Reactivity — 1:59
+## Somnia Reactivity
 
 > Now the part only Somnia makes possible. Somnia's reactivity precompile lets a contract subscribe to an event and be invoked inside the very block that emits it. No keeper, no relayer, no bot. We built our copy engine on that.
 >
@@ -76,7 +78,7 @@ Needs the leader key in `.env`, and TapBot paused so the two never race on a non
 
 *(proof, 18 s)*
 
-## A real mirror, on camera — 2:19
+## A real mirror, on camera
 
 > A real leader tap goes in. It fills. It is broadcast through the Router contract.
 >
@@ -84,7 +86,7 @@ Needs the leader key in `.env`, and TapBot paused so the two never race on a non
 
 *(mirror-live, 11 s)*
 
-## The indexer picks it up — 2:34
+## The indexer picks it up
 
 > Our indexer reads it from chain and the new row lands at the top of the table, with both transactions and the block number.
 
@@ -96,13 +98,13 @@ Needs the leader key in `.env`, and TapBot paused so the two never race on a non
 
 *(mirror-row-ready, 12 s)*
 
-## The explorer — 2:53
+## The explorer
 
 > Here is the mirror on the Shannon explorer. Status success, method onEvent, sent from the CopyHandler contract. No externally owned account signed this. That is Somnia reactivity placing a follower's trade in the leader's block.
 
 *(explorer-tx, 12 s)*
 
-## Telegram — 3:09
+## Telegram
 
 > The same flow lives in Telegram, and it is not a link to a website. The bot reads the same live book, so one command places a real immediate-or-cancel order on chain, straight from the chat.
 >
@@ -112,7 +114,7 @@ Needs the leader key in `.env`, and TapBot paused so the two never race on a non
 
 *(telegram, 26 s)*
 
-## Close — 3:36
+## Close
 
 > Followers redeem mirrored winnings through the vault. Every number you saw is read live from Somnia Shannon, and every transaction is real.
 >
