@@ -107,40 +107,66 @@ console.log(`wrote ${silent} (picture only)`);
 
 // ── captions ──────────────────────────────────────────────────────────────
 const ts = (t) => {
-  const ms = Math.max(0, Math.round(t * 1000));
-  const h = Math.floor(ms / 3600000), m = Math.floor((ms % 3600000) / 60000), s = Math.floor((ms % 60000) / 1000), x = ms % 1000;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")},${String(x).padStart(3, "0")}`;
+  const cs = Math.max(0, Math.round(t * 100));
+  const h = Math.floor(cs / 360000), m = Math.floor((cs % 360000) / 6000), s = Math.floor((cs % 6000) / 100), x = cs % 100;
+  return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}.${String(x).padStart(2, "0")}`;
 };
-// A spoken line is too long to read in one go: break it into caption-sized
-// chunks on sentence ends, then on commas, and share the line's time by length.
-const chunk = (text, max = 90) => {
-  const bits = text.match(/[^.!?—]+[.!?—]*\s*/g) ?? [text];
-  const outp = [];
-  for (const b of bits) {
-    if (b.trim().length <= max) { outp.push(b.trim()); continue; }
-    let cur = "";
-    for (const piece of b.split(/(?<=,)\s+/)) {
-      if (cur && (cur + " " + piece).length > max) { outp.push(cur.trim()); cur = piece; } else cur += (cur ? " " : "") + piece;
+// A spoken line is too long to read in one go, so it becomes several caption
+// lines. Pick the breaks the way a person would: lines near a comfortable
+// length, never wider than the plate, and ending where the sentence ends.
+const IDEAL = 38, MAXC = 46, MIDPHRASE = 400, SHORT = 0.35;
+const chunk = (text) => {
+  const t = text.replace(/\s+/g, " ").trim();
+  if (t.length <= MAXC) return [t];
+  const w = t.split(" "), n = w.length;
+  const dp = Array(n + 1).fill(Infinity), back = Array(n + 1).fill(0);
+  dp[0] = 0;
+  for (let i = 1; i <= n; i++) {
+    for (let s = i - 1; s >= 0; s--) {
+      const line = w.slice(s, i).join(" ");
+      if (line.length > MAXC) break;
+      if (dp[s] === Infinity) continue;
+      const d = line.length - IDEAL;
+      let cost = dp[s] + (d > 0 ? d * d : SHORT * d * d);
+      if (i < n && !/[,:;.!?—]$/.test(line)) cost += MIDPHRASE; // breaking mid-phrase reads worse than an uneven line
+      if (cost < dp[i]) { dp[i] = cost; back[i] = s; }
     }
-    if (cur.trim()) outp.push(cur.trim());
   }
-  // glue very short fragments onto the previous chunk
-  const merged = [];
-  for (const c of outp) {
-    if (merged.length && (c.length < 28 || merged[merged.length - 1].length < 28) && (merged[merged.length - 1] + " " + c).length <= max + 30) merged[merged.length - 1] += " " + c;
-    else merged.push(c);
-  }
-  return merged;
+  const out = [];
+  for (let i = n; i > 0; i = back[i]) out.unshift(w.slice(back[i], i).join(" "));
+  return out;
 };
-const srtPath = path.join(dir, "captions.srt");
-const writeSrt = (cues) => {
-  let n = 1;
-  fs.writeFileSync(srtPath, cues.filter((c) => c.end > c.start + 0.2).map((c) => `${n++}\n${ts(c.start)} --> ${ts(c.end)}\n${c.text}\n`).join("\n"));
-  console.log(`captions: ${cues.length} cues → ${srtPath}`);
+
+// Captions are written as ASS rather than SRT so they can carry the product's
+// own typeface and a plate that reads on both the dark app and the white block
+// explorer: one line per cue, white Manrope on a near-opaque panel, no shadow.
+const assPath = path.join(dir, "captions.ass");
+const FONTS = path.resolve(new URL(".", import.meta.url).pathname, "fonts");
+const ASS_HEAD = `[Script Info]
+ScriptType: v4.00+
+PlayResX: ${W}
+PlayResY: ${H}
+WrapStyle: 2
+ScaledBorderAndShadow: yes
+YCbCr Matrix: TV.709
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Cap,Manrope,32,&H00FFFFFF,&H00FFFFFF,&H261C120B,&H70000000,-1,0,0,0,100,100,0.8,0,3,14,0,2,80,80,54,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+`;
+const writeCaptions = (cues) => {
+  const body = cues
+    .filter((c) => c.end > c.start + 0.2)
+    .map((c) => `Dialogue: 0,${ts(c.start)},${ts(c.end)},Cap,,0,0,0,,{\\fad(90,90)}${c.text.replace(/\n/g, " ")}`)
+    .join("\n");
+  fs.writeFileSync(assPath, ASS_HEAD + body + "\n");
+  console.log(`captions: ${cues.length} cues → ${assPath}`);
 };
-const style = "FontName=DejaVu Sans,FontSize=8,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=3,BackColour=&HA0000000,Outline=1,Shadow=0,MarginV=22,MarginL=60,MarginR=60,Alignment=2";
 const burn = (input, dest, extra = []) =>
-  ff(["-i", input, "-vf", `subtitles='${srtPath.replace(/'/g, "\\'")}':force_style='${style}'`, ...enc, ...extra, dest]);
+  ff(["-i", input, "-vf", `subtitles='${assPath.replace(/'/g, "\\'")}':fontsdir='${FONTS}'`, ...enc, ...extra, dest]);
 
 const marks = clean.filter((r) => r.idx >= 0).map((r) => ({ name: nameOf(r.idx), start: r.start, end: r.end }));
 const named = marks.filter((m, i) => (LINES[m.name] || m.name === "end") && marks.findIndex((x) => x.name === m.name) === i);
@@ -159,7 +185,7 @@ if (!fs.existsSync(durPath)) {
     const per = Math.max(b - a, 2.5 * lines.length) / lines.length;
     lines.forEach((text, k) => cues.push({ start: a + k * per, end: Math.min(a + (k + 1) * per - 0.15, total), text }));
   });
-  writeSrt(cues);
+  writeCaptions(cues);
   burn(silent, out);
   console.log(`wrote ${out} (captioned, no narration — run scripts/tts.py for voice)`);
   process.exit(0);
@@ -277,6 +303,6 @@ const list = path.join(segDir, "list.txt");
 fs.writeFileSync(list, fs.readdirSync(segDir).filter((f) => f.endsWith(".mp4")).sort().map((f) => `file '${f}'`).join("\n"));
 const joined = path.join(dir, "voiced.mp4");
 ff(["-f", "concat", "-safe", "0", "-i", list, "-c", "copy", joined]);
-writeSrt(cues);
+writeCaptions(cues);
 burn(joined, out, ["-af", "loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000", "-ar", "48000", "-c:a", "aac", "-b:a", "160k"]);
 console.log(`wrote ${out} (narrated + captioned) and ${silent} (picture only)`);

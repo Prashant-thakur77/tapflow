@@ -14,6 +14,12 @@ The narration below is the source of truth: [`scripts/demo-lines.mjs`](../script
 feeds the voice ([`scripts/tts.py`](../scripts/tts.py), Chatterbox), the scene
 holds in the recorder, and the burned-in captions.
 
+Captions are set in Manrope, the app's own typeface ([`scripts/fonts`](../scripts/fonts),
+SIL Open Font Licence), one line per cue on a panel dark enough to read over the
+white block explorer and close enough to the app's own background to disappear
+against it. Lines are broken where the sentence breaks, never leaving a word
+stranded on its own.
+
 Rebuild it:
 
 ```bash
